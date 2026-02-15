@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-02-15
+
+### Fixed
+
+- Fix repository URL in package.json (runId-labs/lys-front)
+
 ## [0.1.0] - 2026-02-15
 
 ### Added

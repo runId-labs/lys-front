@@ -1,6 +1,6 @@
 {
   "name": "runid-lys",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Frontend framework library for the lys ecosystem — providers, hooks, tools, and types for React applications",
   "keywords": [
     "react",
