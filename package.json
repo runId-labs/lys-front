@@ -1,0 +1,103 @@
+{
+  "name": "runid-lys",
+  "version": "0.1.0",
+  "description": "Frontend framework library for the lys ecosystem — providers, hooks, tools, and types for React applications",
+  "keywords": [
+    "react",
+    "providers",
+    "graphql",
+    "relay",
+    "framework",
+    "lys"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/runId-labs/lys-front.git"
+  },
+  "homepage": "https://github.com/runId-labs/lys-front",
+  "bugs": {
+    "url": "https://github.com/runId-labs/lys-front/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js"
+    },
+    "./templates": {
+      "types": "./dist/templates/index.d.ts",
+      "import": "./dist/templates/index.js"
+    },
+    "./relay": {
+      "types": "./dist/relay/index.d.ts",
+      "import": "./dist/relay/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-intl": "^6.0.0 || ^7.0.0",
+    "react-relay": "^18.0.0",
+    "react-router-dom": "^6.0.0 || ^7.0.0",
+    "relay-runtime": "^18.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-relay": "^16.0.0",
+    "@types/relay-runtime": "^17.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.0.18",
+    "babel-plugin-relay": "^20.1.1",
+    "jsdom": "^28.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-intl": "^7.1.14",
+    "react-relay": "^18.1.0",
+    "react-router-dom": "^7.9.5",
+    "relay-runtime": "^18.1.0",
+    "sass": "^1.81.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.1",
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^4.0.18"
+  }
+}
