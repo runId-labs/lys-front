@@ -27,6 +27,7 @@ const ChatbotProvider: React.FC<ChatbotProviderProps> = ({children}) => {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [isChatbotMode, setIsChatbotMode] = useState<boolean>(false);
     const [isChatbotEnabled, setIsChatbotEnabled] = useState<boolean>(true);
+    const [isStreaming, setIsStreaming] = useState<boolean>(false);
     const [refreshSignal, setRefreshSignal] = useState<RefreshSignal>({nodes: [], version: 0});
 
     /*******************************************************************************************************************
@@ -38,6 +39,20 @@ const ChatbotProvider: React.FC<ChatbotProviderProps> = ({children}) => {
      */
     const addMessage = useCallback((message: ChatMessage) => {
         setMessages(prev => [...prev, message]);
+    }, []);
+
+    /**
+     * Append content to the last assistant message (for streaming)
+     */
+    const updateLastMessage = useCallback((contentDelta: string) => {
+        setMessages(prev => {
+            if (prev.length === 0) return prev;
+            const last = prev[prev.length - 1];
+            if (last.role !== "assistant") return prev;
+            const updated = [...prev];
+            updated[updated.length - 1] = {...last, content: last.content + contentDelta};
+            return updated;
+        });
     }, []);
 
     /**
@@ -68,15 +83,18 @@ const ChatbotProvider: React.FC<ChatbotProviderProps> = ({children}) => {
         conversationId,
         isChatbotMode,
         isChatbotEnabled,
+        isStreaming,
         refreshSignal,
         setMessages,
         setConversationId,
         setIsChatbotMode,
         setIsChatbotEnabled,
+        setIsStreaming,
         addMessage,
+        updateLastMessage,
         clearConversation,
         triggerRefresh
-    }), [messages, conversationId, isChatbotMode, isChatbotEnabled, refreshSignal, addMessage, clearConversation, triggerRefresh]);
+    }), [messages, conversationId, isChatbotMode, isChatbotEnabled, isStreaming, refreshSignal, addMessage, updateLastMessage, clearConversation, triggerRefresh]);
 
     /*******************************************************************************************************************
      *                                                  RENDER

@@ -232,6 +232,93 @@ describe("ChatbotProvider", () => {
         });
     });
 
+    describe("streaming", () => {
+        it("starts with streaming off", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            expect(getCtx().isStreaming).toBe(false);
+        });
+
+        it("toggles streaming state", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            act(() => {
+                getCtx().setIsStreaming(true);
+            });
+
+            expect(getCtx().isStreaming).toBe(true);
+
+            act(() => {
+                getCtx().setIsStreaming(false);
+            });
+
+            expect(getCtx().isStreaming).toBe(false);
+        });
+    });
+
+    describe("updateLastMessage", () => {
+        it("appends content to the last assistant message", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            act(() => {
+                getCtx().addMessage({role: "assistant", content: "Hello"});
+            });
+
+            act(() => {
+                getCtx().updateLastMessage(" world");
+            });
+
+            expect(getCtx().messages).toHaveLength(1);
+            expect(getCtx().messages[0].content).toBe("Hello world");
+        });
+
+        it("does nothing when messages are empty", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            act(() => {
+                getCtx().updateLastMessage("delta");
+            });
+
+            expect(getCtx().messages).toHaveLength(0);
+        });
+
+        it("does nothing when last message is not assistant", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            act(() => {
+                getCtx().addMessage({role: "user", content: "Hello"});
+            });
+
+            act(() => {
+                getCtx().updateLastMessage(" delta");
+            });
+
+            expect(getCtx().messages[0].content).toBe("Hello");
+        });
+
+        it("accumulates multiple deltas", () => {
+            const {getCtx} = renderChatbotProvider();
+
+            act(() => {
+                getCtx().addMessage({role: "assistant", content: ""});
+            });
+
+            act(() => {
+                getCtx().updateLastMessage("Hello");
+            });
+
+            act(() => {
+                getCtx().updateLastMessage(" world");
+            });
+
+            act(() => {
+                getCtx().updateLastMessage("!");
+            });
+
+            expect(getCtx().messages[0].content).toBe("Hello world!");
+        });
+    });
+
     describe("useChatbot (outside provider)", () => {
         it("throws when used outside ChatbotProvider", () => {
             const ThrowingConsumer = () => {

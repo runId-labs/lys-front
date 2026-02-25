@@ -3,7 +3,8 @@ import {render, act, waitFor} from "@testing-library/react";
 import {ConnectedUserContext} from "../ConnectedUserProvider/hooks";
 import {createMockConnectedUserContext, mockUser} from "../../test/test-utils";
 import SignalProvider from "./index";
-import {useSignal, useSignalSubscription} from "./hooks";
+import {useSignal, useSignalSubscription, useSignalRefresh} from "./hooks";
+import {SignalRefresh} from "./types";
 
 /**
  * Mock EventSource
@@ -273,5 +274,107 @@ describe("SignalProvider", () => {
         handler.mockClear();
 
         // No more calls possible since the EventSource is closed on unmount
+    });
+
+    describe("useSignalRefresh", () => {
+        const RefreshConsumer = ({signalKeys, onValue}: {signalKeys: string[], onValue: (v: SignalRefresh) => void}) => {
+            const refresh = useSignalRefresh(...signalKeys);
+            onValue(refresh);
+            return <div>version: {refresh.version}</div>;
+        };
+
+        function renderWithRefresh(signalKeys: string[]) {
+            const connCtx = createMockConnectedUserContext();
+            let latestRefresh: SignalRefresh = {version: 0, params: null};
+
+            const result = render(
+                <ConnectedUserContext.Provider value={connCtx}>
+                    <SignalProvider>
+                        <RefreshConsumer signalKeys={signalKeys} onValue={(v) => {latestRefresh = v;}}/>
+                    </SignalProvider>
+                </ConnectedUserContext.Provider>
+            );
+
+            return {result, getRefresh: () => latestRefresh};
+        }
+
+        it("starts with version 0 and null params", () => {
+            const {getRefresh} = renderWithRefresh(["TEST_SIGNAL"]);
+
+            expect(getRefresh().version).toBe(0);
+            expect(getRefresh().params).toBeNull();
+        });
+
+        it("increments version on matching signal", () => {
+            const {getRefresh} = renderWithRefresh(["TEST_SIGNAL"]);
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123", signal: "TEST_SIGNAL", params: {key: "value"}
+                }));
+            });
+
+            expect(getRefresh().version).toBe(1);
+            expect(getRefresh().params).toEqual({key: "value"});
+        });
+
+        it("does not increment version on non-matching signal", () => {
+            const {getRefresh} = renderWithRefresh(["TEST_SIGNAL"]);
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123", signal: "OTHER_SIGNAL", params: null
+                }));
+            });
+
+            expect(getRefresh().version).toBe(0);
+        });
+
+        it("matches on params.type_id for notification-wrapped signals", () => {
+            const {getRefresh} = renderWithRefresh(["PORTFOLIO_ANALYSIS_COMPLETED"]);
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123",
+                    signal: "NOTIFICATION",
+                    params: {type_id: "PORTFOLIO_ANALYSIS_COMPLETED", data: {year: 2024}}
+                }));
+            });
+
+            expect(getRefresh().version).toBe(1);
+            expect(getRefresh().params).toEqual({type_id: "PORTFOLIO_ANALYSIS_COMPLETED", data: {year: 2024}});
+        });
+
+        it("increments version multiple times", () => {
+            const {getRefresh} = renderWithRefresh(["TEST_SIGNAL"]);
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123", signal: "TEST_SIGNAL", params: {v: 1}
+                }));
+            });
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123", signal: "TEST_SIGNAL", params: {v: 2}
+                }));
+            });
+
+            expect(getRefresh().version).toBe(2);
+            expect(getRefresh().params).toEqual({v: 2});
+        });
+
+        it("matches any of multiple signal keys", () => {
+            const {getRefresh} = renderWithRefresh(["SIGNAL_A", "SIGNAL_B"]);
+
+            act(() => {
+                MockEventSource.instances[0].simulateMessage(JSON.stringify({
+                    channel: "user:123", signal: "SIGNAL_B", params: {from: "B"}
+                }));
+            });
+
+            expect(getRefresh().version).toBe(1);
+            expect(getRefresh().params).toEqual({from: "B"});
+        });
     });
 });

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-25
+
+### Added
+
+- `useSignalRefresh` hook for reactive query reloading on specific signals
+- `SignalRefresh` type for useSignalRefresh return value
+- Streaming support in ChatbotProvider: `isStreaming` state, `setIsStreaming`, `updateLastMessage`
+
 ## [0.1.1] - 2026-02-15
 
 ### Fixed

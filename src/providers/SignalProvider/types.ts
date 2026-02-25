@@ -16,6 +16,14 @@ export interface Signal {
 export type SignalHandler = (signal: Signal) => void;
 
 /**
+ * Return type of useSignalRefresh hook
+ */
+export interface SignalRefresh {
+    version: number;
+    params: Record<string, unknown> | null;
+}
+
+/**
  * SignalProvider props
  */
 export interface SignalProviderProps {

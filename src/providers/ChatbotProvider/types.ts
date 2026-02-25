@@ -36,12 +36,15 @@ export interface ChatbotContextValue {
     conversationId: string | null;
     isChatbotMode: boolean;
     isChatbotEnabled: boolean;
+    isStreaming: boolean;
     refreshSignal: RefreshSignal;
     setMessages: (messages: ChatMessage[]) => void;
     setConversationId: (id: string | null) => void;
     setIsChatbotMode: (mode: boolean) => void;
     setIsChatbotEnabled: (enabled: boolean) => void;
+    setIsStreaming: (streaming: boolean) => void;
     addMessage: (message: ChatMessage) => void;
+    updateLastMessage: (contentDelta: string) => void;
     clearConversation: () => void;
     triggerRefresh: (nodes: string[]) => void;
 }

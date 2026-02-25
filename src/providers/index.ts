@@ -24,7 +24,7 @@ export { useFilterLabels } from "./FilterLabelsProvider/hooks";
 export { usePageContext } from "./PageContextProvider/hooks";
 export { useChatbot } from "./ChatbotProvider/hooks";
 export { useUrlQueries } from "./UrlQueriesProvider/hooks";
-export { useSignal, useSignalSubscription } from "./SignalProvider/hooks";
+export { useSignal, useSignalSubscription, useSignalRefresh } from "./SignalProvider/hooks";
 export { useLysQuery } from "./LysQueryProvider/hooks";
 export { useLysMutation } from "./LysMutationProvider/hooks";
 export { usePermissionCheck } from "./hooks/usePermissionCheck";
@@ -40,7 +40,7 @@ export type { AlertLevelType, AlertMessageInterface, DatedAlertMessageType, Aler
 export type { LocaleProviderProps, LocaleContextInterface } from "./LocaleProvider/types";
 export type { ConnectedUserInterface, ConnectedUserProviderProps, ConnectedUserProviderRefInterface, EmailAddressInterface, LanguageInterface, UserStatusInterface, PrivateDataInterface, GenderInterface } from "./ConnectedUserProvider/types";
 export type { WebserviceInterface, WebserviceAccessProviderProps } from "./WebserviceAccessProvider/types";
-export type { Signal, SignalHandler, SignalProviderProps, SignalContextValue } from "./SignalProvider/types";
+export type { Signal, SignalHandler, SignalRefresh, SignalProviderProps, SignalContextValue } from "./SignalProvider/types";
 export type { ChatMessage, FrontendAction, AIMessage, AIToolResult, ChatbotContextValue } from "./ChatbotProvider/types";
 export type { PageContextParamValue, PageContext, PageContextValue } from "./PageContextProvider/types";
 export type { UrlQueryValue, UrlQueriesProviderProps } from "./UrlQueriesProvider/types";
