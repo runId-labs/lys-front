@@ -1,7 +1,6 @@
 import {forwardRef, useCallback, useEffect, useRef, useState} from "react";
 import {useMutation, graphql, useQueryLoader, usePreloadedQuery, useFragment} from "react-relay";
 import type {PreloadedQuery} from "react-relay";
-import {PayloadError} from "relay-runtime";
 import {useIntl} from "react-intl";
 import { ConnectedUserContext } from "./hooks";
 import {ConnectedUserInterface, ConnectedUserProviderProps, ConnectedUserProviderRefInterface} from "./types";
@@ -9,8 +8,8 @@ import {useAlertMessages} from "../AlertMessageProvider/hooks";
 import {useLocale} from "../LocaleProvider/hooks";
 import {ConnectedUserFragment} from "./ConnectedUserFragment";
 import type {ConnectedUserProviderQuery as ConnectedUserProviderQueryType} from "./__generated__/ConnectedUserProviderQuery.graphql";
-import type {ConnectedUserProviderRefreshMutation$data} from "./__generated__/ConnectedUserProviderRefreshMutation.graphql";
-import type {ConnectedUserProviderLoginMutation$data} from "./__generated__/ConnectedUserProviderLoginMutation.graphql";
+import type {ConnectedUserProviderRefreshMutation} from "./__generated__/ConnectedUserProviderRefreshMutation.graphql";
+import type {ConnectedUserProviderLoginMutation} from "./__generated__/ConnectedUserProviderLoginMutation.graphql";
 import {clearRelayCache} from "../../relay/RelayEnvironment";
 import {errorTranslations, isErrorKey} from "../../i18n/errors";
 import type {RelayNetworkError} from "../../types/relayTypes";
@@ -83,7 +82,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
      *                                                  MUTATIONS
      ******************************************************************************************************************/
 
-    const [commitLogin, isLoginInflight] = useMutation(
+    const [commitLogin, isLoginInflight] = useMutation<ConnectedUserProviderLoginMutation>(
         graphql`mutation ConnectedUserProviderLoginMutation($inputs: LoginInput!) {
             login(inputs: $inputs) {
                 success
@@ -93,7 +92,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
         }`
     )
 
-    const [commitRefresh] = useMutation(RefreshMutationNode)
+    const [commitRefresh] = useMutation<ConnectedUserProviderRefreshMutation>(RefreshMutationNode)
 
     const [commitLogout, isLogoutInflight] = useMutation(
         graphql`mutation ConnectedUserProviderLogoutMutation {
@@ -121,7 +120,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
 
         commitRefresh({
             variables: {},
-            onCompleted: (response: ConnectedUserProviderRefreshMutation$data, errors: PayloadError[] | null) => {
+            onCompleted: (response, errors) => {
                 isRefreshInflightRef.current = false;
 
                 if (!errors || !errors?.length) {
@@ -178,7 +177,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
                     password
                 }
             },
-            onCompleted: (response: ConnectedUserProviderLoginMutation$data, errors: PayloadError[] | null) => {
+            onCompleted: (response, errors) => {
                 if (!errors || !errors?.length) {
                     // Trigger refetch of connected user query
                     onMutationSuccess();
@@ -245,7 +244,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
 
             commitRefresh({
                 variables: {},
-                onCompleted: (response: ConnectedUserProviderRefreshMutation$data, errors: PayloadError[] | null) => {
+                onCompleted: (response, errors) => {
                     isRefreshInflightRef.current = false;
 
                     if (!errors || !errors?.length) {
@@ -403,7 +402,7 @@ const ConnectedUserProvider = forwardRef<ConnectedUserProviderRefInterface, Conn
     const queryLoadedRef = useRef(false);
 
     // Reuse the shared refresh mutation for the initial mount refresh
-    const [commitInitialRefresh] = useMutation(RefreshMutationNode);
+    const [commitInitialRefresh] = useMutation<ConnectedUserProviderRefreshMutation>(RefreshMutationNode);
 
     // On mount: attempt token refresh, then load user query
     useEffect(() => {

@@ -19,7 +19,7 @@ export const mockUser: ConnectedUserInterface = {
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         validatedAt: "2024-01-01T00:00:00Z",
-        lastValidationRequestAt: null,
+        lastValidationRequestAt: undefined,
     },
     status: {id: "status-1", code: "ACTIVE"},
     language: {id: "lang-1", code: "en"},
