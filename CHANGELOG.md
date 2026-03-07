@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-07
+
+### Added
+
+- `ClientProvider` for managing current client ID selection (locked for client users, selectable for admins)
+- `useClientId` hook exposing `clientId`, `setClientId`, and `isLocked`
+- Batched URL update mechanism in `UrlQueriesProvider` via `queueMicrotask` to prevent race conditions
+
+### Fixed
+
+- TypeScript errors in `ConnectedUserProvider` (generic types on `useMutation` calls)
+- TypeScript error in test-utils mock user (`lastValidationRequestAt` type)
+
 ## [0.2.0] - 2026-02-25
 
 ### Added

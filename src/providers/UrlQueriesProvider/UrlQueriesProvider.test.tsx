@@ -136,11 +136,15 @@ describe("UrlQueriesProvider", () => {
         expect(getValue().appliedParams.get("size")).toBe("10");
     });
 
-    it("update applies multiple params at once to URL", () => {
+    it("update applies multiple params at once to URL", async () => {
         const {getValue} = renderUrlQueriesProvider();
 
         act(() => {
             getValue().update({page: 1, size: 25, sort: "name"});
+        });
+
+        await act(async () => {
+            await Promise.resolve();
         });
 
         expect(getValue().appliedParams.get("page")).toBe("1");
@@ -148,11 +152,15 @@ describe("UrlQueriesProvider", () => {
         expect(getValue().appliedParams.get("sort")).toBe("name");
     });
 
-    it("update removes params with null/undefined values", () => {
+    it("update removes params with null/undefined values", async () => {
         const {getValue} = renderUrlQueriesProvider(["/?page=1&size=10"]);
 
         act(() => {
             getValue().update({page: null, size: undefined});
+        });
+
+        await act(async () => {
+            await Promise.resolve();
         });
 
         expect(getValue().appliedParams.get("page")).toBeNull();
@@ -189,5 +197,40 @@ describe("UrlQueriesProvider", () => {
         });
 
         expect(getValue().hasStagedChanges).toBe(false);
+    });
+
+    // --- Batching ---
+
+    it("batches multiple update() calls in the same microtask", async () => {
+        const {getValue} = renderUrlQueriesProvider();
+
+        // Two update() calls in the same synchronous block
+        act(() => {
+            getValue().update({page: 1});
+            getValue().update({size: 25});
+        });
+
+        // Wait for the microtask flush
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(getValue().appliedParams.get("page")).toBe("1");
+        expect(getValue().appliedParams.get("size")).toBe("25");
+    });
+
+    it("last value wins when batched updates target the same key", async () => {
+        const {getValue} = renderUrlQueriesProvider();
+
+        act(() => {
+            getValue().update({page: 1});
+            getValue().update({page: 5});
+        });
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(getValue().appliedParams.get("page")).toBe("5");
     });
 });

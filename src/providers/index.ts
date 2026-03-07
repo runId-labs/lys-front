@@ -12,6 +12,7 @@ export { default as WebserviceAccessProvider } from "./WebserviceAccessProvider"
 export { default as SignalProvider } from "./SignalProvider";
 export { default as LysQueryProvider } from "./LysQueryProvider";
 export { default as LysMutationProvider } from "./LysMutationProvider";
+export { default as ClientProvider } from "./ClientProvider";
 
 // Hooks
 export { useAlertMessages } from "./AlertMessageProvider/hooks";
@@ -28,6 +29,8 @@ export { useSignal, useSignalSubscription, useSignalRefresh } from "./SignalProv
 export { useLysQuery } from "./LysQueryProvider/hooks";
 export { useLysMutation } from "./LysMutationProvider/hooks";
 export { usePermissionCheck } from "./hooks/usePermissionCheck";
+export { useClientId } from "./ClientProvider/hooks";
+export type { ClientContextValue, ClientProviderProps } from "./ClientProvider/types";
 
 // Contexts
 export { default as LysLoadingContext, useLysLoadingFallback } from "./LysQueryProvider/LysLoadingContext";

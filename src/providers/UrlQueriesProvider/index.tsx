@@ -3,6 +3,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState
 } from "react";
 import {useSearchParams} from "react-router-dom";
@@ -98,19 +99,42 @@ const UrlQueriesProvider: React.ComponentType<UrlQueriesProviderProps> = ({child
     }, [stagedParams, setSearchParams]);
 
     /**
-     * Update multiple parameters at once
+     * Batched update: accumulates changes from multiple update() calls
+     * within the same microtask and flushes them in a single setSearchParams call.
+     *
+     * Why batching is needed:
+     * react-router's setSearchParams does NOT chain functional updates like React's
+     * setState — each call gets the same `prev` snapshot. When multiple components
+     * call update() in the same effect cycle (e.g. ClientProvider sets clientId while
+     * DashboardFiltersFeature resets companyId), the last call would overwrite the first.
+     * Batching via queueMicrotask merges all pending changes into one setSearchParams call.
      */
+    const pendingUpdatesRef = useRef<{[key: string]: UrlQueryValue}>({});
+    const flushScheduledRef = useRef(false);
+
     const update = useCallback((data: {[key: string]: UrlQueryValue}) => {
-        setSearchParams(prev => {
-            Object.entries(data).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
-                    prev.set(key, value.toString());
-                } else {
-                    prev.delete(key);
-                }
+        Object.assign(pendingUpdatesRef.current, data);
+
+        if (!flushScheduledRef.current) {
+            flushScheduledRef.current = true;
+            queueMicrotask(() => {
+                flushScheduledRef.current = false;
+                const pending = {...pendingUpdatesRef.current};
+                pendingUpdatesRef.current = {};
+
+                setSearchParams(prev => {
+                    const next = new URLSearchParams(prev);
+                    Object.entries(pending).forEach(([key, value]) => {
+                        if (value !== undefined && value !== null) {
+                            next.set(key, value.toString());
+                        } else {
+                            next.delete(key);
+                        }
+                    });
+                    return next;
+                });
             });
-            return prev;
-        });
+        }
     }, [setSearchParams]);
 
     /*******************************************************************************************************************
