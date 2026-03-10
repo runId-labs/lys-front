@@ -206,6 +206,20 @@ describe("ClientProvider", () => {
 
     // --- Logout ---
 
+    it("does not sync clientId to URL when user is disconnected", async () => {
+        sessionStorage.setItem(SESSION_KEY, "stale-client");
+        const {getValue} = renderClientProvider({user: undefined});
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        // No URL sync should happen when disconnected
+        expect(getValue().appliedParams.get("clientId")).toBeNull();
+    });
+
+    // --- Logout ---
+
     it("clears clientId on logout", () => {
         sessionStorage.setItem(SESSION_KEY, "will-be-cleared");
         const adminUser = {...mockUser, clientId: undefined};

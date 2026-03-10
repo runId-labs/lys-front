@@ -53,16 +53,19 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children}) =>
      * Sync clientId to URL on selection change or page navigation
      * Uses UrlQueriesProvider.update (same setSearchParams as other components)
      * to avoid conflicts when multiple params change in the same effect cycle
+     *
+     * Skip when no user is connected: avoids setSearchParams overriding
+     * navigate('/login') in PrivateAppTemplate's redirect effect.
      */
     useEffect(() => {
-        if (isLocked) return;
+        if (isLocked || !user) return;
 
         if (selectedClientId) {
             updateUrl({[URL_PARAM_KEY]: selectedClientId});
         } else {
             updateUrl({[URL_PARAM_KEY]: null});
         }
-    }, [selectedClientId, location.pathname, isLocked, updateUrl]);
+    }, [selectedClientId, location.pathname, isLocked, user, updateUrl]);
 
     /**
      * Resolved clientId: locked from user profile or manual selection

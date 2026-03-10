@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-03-10
+
+### Fixed
+
+- `ClientProvider` no longer syncs clientId to URL when user is disconnected, preventing interference with login redirect navigation
+
 ## [0.3.0] - 2026-03-07
 
 ### Added
