@@ -24,6 +24,7 @@ export const usePageContext = (): PageContextValue => {
     const fallback = useMemo<PageContextValue>(() => ({
         context: DEFAULT_CONTEXT,
         setPageContext: () => {},
+        updatePageParams: () => {},
         clearPageContext: () => {}
     }), []);
 

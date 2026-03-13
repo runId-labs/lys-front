@@ -23,6 +23,8 @@ export interface PageContextValue {
     context: PageContext;
     /** Set pageName and params (called by RouteProvider) */
     setPageContext: (pageName: string, params?: Record<string, PageContextParamValue>) => void;
+    /** Merge additional params into current context without replacing existing ones */
+    updatePageParams: (additionalParams: Record<string, PageContextParamValue>) => void;
     /** Clear all context */
     clearPageContext: () => void;
 }

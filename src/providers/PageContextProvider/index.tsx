@@ -46,6 +46,20 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
     }, []);
 
     /**
+     * Merge additional params into the current page context.
+     * Useful for components that need to add dynamic state (e.g., live slider values)
+     * without overwriting the base params set by RouteProvider.
+     */
+    const updatePageParams = useCallback((
+        additionalParams: Record<string, PageContextParamValue>
+    ) => {
+        setContext(prev => ({
+            ...prev,
+            params: {...prev.params, ...additionalParams}
+        }));
+    }, []);
+
+    /**
      * Clear the page context.
      */
     const clearPageContext = useCallback(() => {
@@ -59,8 +73,9 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
     const contextValue = useMemo(() => ({
         context,
         setPageContext,
+        updatePageParams,
         clearPageContext
-    }), [context, setPageContext, clearPageContext]);
+    }), [context, setPageContext, updatePageParams, clearPageContext]);
 
     /*******************************************************************************************************************
      *                                                  RENDER

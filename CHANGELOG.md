@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-13
+
+### Added
+
+- `updatePageParams` method in `PageContextProvider` to merge additional params into the current page context without replacing existing ones
+
 ## [0.3.1] - 2026-03-10
 
 ### Fixed

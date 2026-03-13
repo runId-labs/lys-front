@@ -91,6 +91,49 @@ describe("PageContextProvider", () => {
         expect(getValue().context.pageName).toBe("Page2");
         expect(getValue().context.params).toEqual({b: 2});
     });
+
+    it("merges additional params via updatePageParams", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("DashboardPage", {companyId: "123"});
+        });
+
+        act(() => {
+            getValue().updatePageParams({year: 2024, active: true});
+        });
+
+        expect(getValue().context.pageName).toBe("DashboardPage");
+        expect(getValue().context.params).toEqual({companyId: "123", year: 2024, active: true});
+    });
+
+    it("overwrites existing param keys via updatePageParams", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("Page", {a: 1, b: 2});
+        });
+
+        act(() => {
+            getValue().updatePageParams({b: 99, c: 3});
+        });
+
+        expect(getValue().context.params).toEqual({a: 1, b: 99, c: 3});
+    });
+
+    it("preserves pageName when updatePageParams is called", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("MyPage", {x: 10});
+        });
+
+        act(() => {
+            getValue().updatePageParams({y: 20});
+        });
+
+        expect(getValue().context.pageName).toBe("MyPage");
+    });
 });
 
 describe("usePageContext (outside provider)", () => {
@@ -106,6 +149,7 @@ describe("usePageContext (outside provider)", () => {
 
         // Should not throw
         ctx!.setPageContext("test");
+        ctx!.updatePageParams({foo: "bar"});
         ctx!.clearPageContext();
     });
 });
