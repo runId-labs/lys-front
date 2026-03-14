@@ -77,11 +77,15 @@ describe("PageContextProvider", () => {
         expect(getValue().context.params).toEqual({});
     });
 
-    it("overwrites previous context on new setPageContext", () => {
+    it("overwrites previous context on new setPageContext (page change clears internalParams)", () => {
         const {getValue} = renderPageContextProvider();
 
         act(() => {
             getValue().setPageContext("Page1", {a: 1});
+        });
+
+        act(() => {
+            getValue().updatePageParams({internal: "value"});
         });
 
         act(() => {
@@ -107,7 +111,7 @@ describe("PageContextProvider", () => {
         expect(getValue().context.params).toEqual({companyId: "123", year: 2024, active: true});
     });
 
-    it("overwrites existing param keys via updatePageParams", () => {
+    it("overwrites existing param keys via updatePageParams (internalParams take priority)", () => {
         const {getValue} = renderPageContextProvider();
 
         act(() => {
@@ -133,6 +137,73 @@ describe("PageContextProvider", () => {
         });
 
         expect(getValue().context.pageName).toBe("MyPage");
+    });
+
+    it("setPageContext on same page preserves internalParams (race condition fix)", () => {
+        const {getValue} = renderPageContextProvider();
+
+        // RouteProvider sets page context
+        act(() => {
+            getValue().setPageContext("IRSDashboard", {companyId: "abc"});
+        });
+
+        // Page component sets year via updatePageParams
+        act(() => {
+            getValue().updatePageParams({year: 2024, currentLevers: ["SF"]});
+        });
+
+        expect(getValue().context.params).toEqual({companyId: "abc", year: 2024, currentLevers: ["SF"]});
+
+        // RouteProvider fires setPageContext again (same page, e.g. URL param change)
+        act(() => {
+            getValue().setPageContext("IRSDashboard", {companyId: "def"});
+        });
+
+        // internalParams (year, currentLevers) must survive
+        expect(getValue().context.params).toEqual({companyId: "def", year: 2024, currentLevers: ["SF"]});
+    });
+
+    it("setPageContext on different page clears internalParams", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("PageA", {id: "1"});
+        });
+
+        act(() => {
+            getValue().updatePageParams({year: 2024, filter: "active"});
+        });
+
+        expect(getValue().context.params).toEqual({id: "1", year: 2024, filter: "active"});
+
+        // Navigate to a different page
+        act(() => {
+            getValue().setPageContext("PageB", {id: "2"});
+        });
+
+        // internalParams from PageA must be cleared
+        expect(getValue().context.params).toEqual({id: "2"});
+        expect(getValue().context.params).not.toHaveProperty("year");
+        expect(getValue().context.params).not.toHaveProperty("filter");
+    });
+
+    it("clearPageContext clears both urlParams and internalParams", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("Page", {url: "param"});
+        });
+
+        act(() => {
+            getValue().updatePageParams({internal: "param"});
+        });
+
+        act(() => {
+            getValue().clearPageContext();
+        });
+
+        expect(getValue().context.pageName).toBeNull();
+        expect(getValue().context.params).toEqual({});
     });
 });
 

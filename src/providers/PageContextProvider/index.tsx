@@ -1,9 +1,22 @@
 import React, {useState, useCallback, useMemo} from "react";
 import {PageContextContext} from "./hooks";
-import {PageContext, PageContextParamValue} from "./types";
+import {PageContextParamValue} from "./types";
 
 interface PageContextProviderProps {
     children: React.ReactNode;
+}
+
+/**
+ * Internal state separating URL-sourced params from component-sourced params.
+ * The exposed `context.params` is the merge of both (internalParams takes priority).
+ *
+ * This separation prevents RouteProvider's setPageContext (which replaces urlParams)
+ * from wiping out params set by page components via updatePageParams (e.g., year, currentLevers).
+ */
+interface InternalState {
+    pageName: string | null;
+    urlParams: Record<string, PageContextParamValue>;
+    internalParams: Record<string, PageContextParamValue>;
 }
 
 /**
@@ -25,9 +38,10 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
      *                                                  STATES
      ******************************************************************************************************************/
 
-    const [context, setContext] = useState<PageContext>({
+    const [state, setState] = useState<InternalState>({
         pageName: null,
-        params: {}
+        urlParams: {},
+        internalParams: {},
     });
 
     /*******************************************************************************************************************
@@ -35,27 +49,34 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
      ******************************************************************************************************************/
 
     /**
-     * Set the current page context (pageName + params).
+     * Set the current page context (pageName + URL params).
      * Called by RouteProvider when route or URL params change.
+     * Replaces urlParams but preserves internalParams.
+     * Clears internalParams only when pageName changes (navigation to a different page).
      */
     const setPageContext = useCallback((
         pageName: string,
         params: Record<string, PageContextParamValue> = {}
     ) => {
-        setContext({pageName, params});
+        setState(prev => ({
+            pageName,
+            urlParams: params,
+            // Clear internal params on page change, preserve on same page
+            internalParams: prev.pageName === pageName ? prev.internalParams : {},
+        }));
     }, []);
 
     /**
-     * Merge additional params into the current page context.
-     * Useful for components that need to add dynamic state (e.g., live slider values)
-     * without overwriting the base params set by RouteProvider.
+     * Merge additional params into the internal params.
+     * Used by page components to add dynamic state (e.g., year, live slider values)
+     * without being overwritten by RouteProvider's URL param updates.
      */
     const updatePageParams = useCallback((
         additionalParams: Record<string, PageContextParamValue>
     ) => {
-        setContext(prev => ({
+        setState(prev => ({
             ...prev,
-            params: {...prev.params, ...additionalParams}
+            internalParams: {...prev.internalParams, ...additionalParams}
         }));
     }, []);
 
@@ -63,19 +84,26 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
      * Clear the page context.
      */
     const clearPageContext = useCallback(() => {
-        setContext({pageName: null, params: {}});
+        setState({pageName: null, urlParams: {}, internalParams: {}});
     }, []);
 
     /*******************************************************************************************************************
      *                                                  MEMOS
      ******************************************************************************************************************/
 
+    /**
+     * Exposed context merges urlParams and internalParams.
+     * internalParams take priority over urlParams.
+     */
     const contextValue = useMemo(() => ({
-        context,
+        context: {
+            pageName: state.pageName,
+            params: {...state.urlParams, ...state.internalParams},
+        },
         setPageContext,
         updatePageParams,
         clearPageContext
-    }), [context, setPageContext, updatePageParams, clearPageContext]);
+    }), [state, setPageContext, updatePageParams, clearPageContext]);
 
     /*******************************************************************************************************************
      *                                                  RENDER
