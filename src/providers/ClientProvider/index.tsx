@@ -56,12 +56,17 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children}) =>
      *
      * Skip when no user is connected: avoids setSearchParams overriding
      * navigate('/login') in PrivateAppTemplate's redirect effect.
+     *
+     * For locked users (user.clientId set), also sync to URL so that
+     * pageContext.params always contains clientId (needed by chatbot mutations).
      */
     useEffect(() => {
-        if (isLocked || !user) return;
+        if (!user) return;
 
-        if (selectedClientId) {
-            updateUrl({[URL_PARAM_KEY]: selectedClientId});
+        const resolvedClientId = isLocked ? user.clientId : selectedClientId;
+
+        if (resolvedClientId) {
+            updateUrl({[URL_PARAM_KEY]: resolvedClientId});
         } else {
             updateUrl({[URL_PARAM_KEY]: null});
         }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-14
+
+### Fixed
+
+- `LysMutationProvider` now retries mutations after token refresh on `ACCESS_DENIED_ERROR` instead of calling `onError`
+- `ClientProvider` syncs locked user's `clientId` to URL for chatbot mutations
+
 ## [0.4.0] - 2026-03-13
 
 ### Added

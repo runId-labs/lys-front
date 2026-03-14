@@ -244,7 +244,7 @@ describe("LysMutationProvider", () => {
             ]);
         });
 
-        it("handles ACCESS_DENIED_ERROR by calling handleSessionExpired", () => {
+        it("handles ACCESS_DENIED_ERROR by calling handleSessionExpired with retry callback", () => {
             const handleSessionExpired = vi.fn();
             const originalOnError = vi.fn();
             const {getCtx} = renderLysMutationProvider({
@@ -264,8 +264,10 @@ describe("LysMutationProvider", () => {
                 commit!({variables: {}, onError: originalOnError});
             });
 
-            expect(handleSessionExpired).toHaveBeenCalled();
-            expect(originalOnError).toHaveBeenCalled();
+            // Should call handleSessionExpired with a retry callback
+            expect(handleSessionExpired).toHaveBeenCalledWith(expect.any(Function));
+            // Should NOT call original onError (mutation will be retried after refresh)
+            expect(originalOnError).not.toHaveBeenCalled();
         });
 
         it("calls original onError callback on regular errors", () => {

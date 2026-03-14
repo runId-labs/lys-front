@@ -59,9 +59,10 @@ const LysMutationProvider = forwardRef<LysMutationRefInterface, LysMutationProvi
             );
 
             if (hasAccessDenied) {
-                // Handle session expiration - redirect to login
-                connectedUserInfo.handleSessionExpired();
-                config.onError?.(error);
+                // Handle session expiration - attempt token refresh then retry mutation
+                connectedUserInfo.handleSessionExpired(() => {
+                    lysCommit(config);
+                });
                 return;
             }
 

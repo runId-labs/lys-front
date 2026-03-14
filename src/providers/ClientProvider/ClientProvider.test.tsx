@@ -28,9 +28,7 @@ function renderClientProvider(options: {
     const {user, initialEntries = ["/"]} = options;
     let latestValue: (ClientContextValue & {appliedParams: URLSearchParams}) | null = null;
 
-    const connCtx = createMockConnectedUserContext(
-        user !== undefined ? {user} : {}
-    );
+    const connCtx = createMockConnectedUserContext({user});
 
     const result = render(
         <ConnectedUserContext.Provider value={connCtx}>
@@ -67,6 +65,8 @@ function renderClientProvider(options: {
 describe("ClientProvider", () => {
     beforeEach(() => {
         sessionStorage.clear();
+        // Clear URL search params from previous tests (jsdom persists location between tests)
+        window.history.replaceState({}, "", "/");
     });
 
     it("renders children", () => {
@@ -193,15 +193,15 @@ describe("ClientProvider", () => {
         expect(getValue().appliedParams.get("clientId")).toBe("synced-client");
     });
 
-    it("does not sync clientId to URL for locked user", async () => {
+    it("syncs locked user clientId to URL", async () => {
         const {getValue} = renderClientProvider({user: mockUser});
 
         await act(async () => {
             await Promise.resolve();
         });
 
-        // The locked user's clientId should not appear in URL
-        expect(getValue().appliedParams.get("clientId")).toBeNull();
+        // Locked user's clientId should appear in URL (needed by chatbot mutations)
+        expect(getValue().appliedParams.get("clientId")).toBe(mockUser.clientId);
     });
 
     // --- Logout ---
@@ -210,8 +210,9 @@ describe("ClientProvider", () => {
         sessionStorage.setItem(SESSION_KEY, "stale-client");
         const {getValue} = renderClientProvider({user: undefined});
 
+        // Flush any pending microtasks (batched URL updates from UrlQueriesProvider)
         await act(async () => {
-            await Promise.resolve();
+            await new Promise(r => setTimeout(r, 0));
         });
 
         // No URL sync should happen when disconnected
