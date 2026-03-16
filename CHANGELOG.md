@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-03-16
+
+### Changed
+
+- `ClientProvider` now determines public pages dynamically from route configuration (`route.type`) via `matchPath` instead of hardcoded pathname checks
+- `ClientProvider` requires a new `routes` prop (`RouteInterface[]`)
+- `PublicAppTemplate` uses `<Navigate>` component instead of `useNavigate` + `useEffect` for redirect
+
 ## [0.4.2] - 2026-03-14
 
 ### Fixed

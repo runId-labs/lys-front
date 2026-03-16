@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useLocation} from "react-router-dom";
+import {matchPath, useLocation} from "react-router-dom";
 import {ClientContext} from "./hooks";
 import {ClientProviderProps} from "./types";
 import {useConnectedUserInfo} from "../ConnectedUserProvider/hooks";
@@ -21,7 +21,7 @@ const URL_PARAM_KEY = "clientId";
  *
  * Must be placed after ConnectedUserProvider and inside UrlQueriesProvider.
  */
-const ClientProvider: React.ComponentType<ClientProviderProps> = ({children}) => {
+const ClientProvider: React.ComponentType<ClientProviderProps> = ({children, routes}) => {
     const {user} = useConnectedUserInfo();
     const {update: updateUrl, appliedParams} = useUrlQueries();
     const location = useLocation();
@@ -57,11 +57,21 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children}) =>
      * Skip when no user is connected: avoids setSearchParams overriding
      * navigate('/login') in PrivateAppTemplate's redirect effect.
      *
+     * Skip on public pages (no clientId needed there): avoids setSearchParams
+     * overriding <Navigate> redirect in PublicAppTemplate when an authenticated
+     * user lands on a public page (e.g. /login).
+     *
      * For locked users (user.clientId set), also sync to URL so that
      * pageContext.params always contains clientId (needed by chatbot mutations).
      */
+    const isPublicPage = useMemo(() => {
+        const matchedRoute = routes.find(route => matchPath(route.path, location.pathname));
+        return matchedRoute?.type === "public";
+    }, [routes, location.pathname]);
+
     useEffect(() => {
         if (!user) return;
+        if (isPublicPage) return;
 
         const resolvedClientId = isLocked ? user.clientId : selectedClientId;
 
@@ -70,7 +80,7 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children}) =>
         } else {
             updateUrl({[URL_PARAM_KEY]: null});
         }
-    }, [selectedClientId, location.pathname, isLocked, user, updateUrl]);
+    }, [selectedClientId, location.pathname, isLocked, user, updateUrl, isPublicPage]);
 
     /**
      * Resolved clientId: locked from user profile or manual selection

@@ -8,8 +8,17 @@ import UrlQueriesProvider from "../UrlQueriesProvider";
 import {useUrlQueries} from "../UrlQueriesProvider/hooks";
 import {createMockConnectedUserContext, mockUser} from "../../test/test-utils";
 import {ClientContextValue} from "./types";
+import {RouteInterface} from "../../types/routeTypes";
 
 const SESSION_KEY = "lys_clientId";
+
+const DummyComponent = () => null;
+
+const mockRoutes: RouteInterface[] = [
+    {name: "Login", transPrefix: "login.", path: "/login", component: DummyComponent, type: "public"},
+    {name: "Home", transPrefix: "home.", path: "/", component: DummyComponent, type: "public"},
+    {name: "Dashboard", transPrefix: "dashboard.", path: "/dashboard", component: DummyComponent, type: "private"},
+];
 
 /**
  * Test consumer exposing both client and URL contexts
@@ -24,8 +33,9 @@ const TestConsumer = ({onValue}: {onValue: (value: ClientContextValue & {applied
 function renderClientProvider(options: {
     user?: typeof mockUser | undefined;
     initialEntries?: string[];
+    routes?: RouteInterface[];
 } = {}) {
-    const {user, initialEntries = ["/"]} = options;
+    const {user, initialEntries = ["/dashboard"], routes = mockRoutes} = options;
     let latestValue: (ClientContextValue & {appliedParams: URLSearchParams}) | null = null;
 
     const connCtx = createMockConnectedUserContext({user});
@@ -34,7 +44,7 @@ function renderClientProvider(options: {
         <ConnectedUserContext.Provider value={connCtx}>
             <MemoryRouter initialEntries={initialEntries}>
                 <UrlQueriesProvider>
-                    <ClientProvider>
+                    <ClientProvider routes={routes}>
                         <TestConsumer onValue={(v) => {latestValue = v;}}/>
                     </ClientProvider>
                 </UrlQueriesProvider>
@@ -51,7 +61,7 @@ function renderClientProvider(options: {
                 <ConnectedUserContext.Provider value={newCtx}>
                     <MemoryRouter initialEntries={initialEntries}>
                         <UrlQueriesProvider>
-                            <ClientProvider>
+                            <ClientProvider routes={routes}>
                                 <TestConsumer onValue={(v) => {latestValue = v;}}/>
                             </ClientProvider>
                         </UrlQueriesProvider>
@@ -150,7 +160,7 @@ describe("ClientProvider", () => {
         const adminUser = {...mockUser, clientId: undefined};
         const {getValue} = renderClientProvider({
             user: adminUser,
-            initialEntries: ["/?clientId=url-client-789"]
+            initialEntries: ["/dashboard?clientId=url-client-789"]
         });
 
         expect(getValue().clientId).toBe("url-client-789");
@@ -169,7 +179,7 @@ describe("ClientProvider", () => {
         const adminUser = {...mockUser, clientId: undefined};
         const {getValue} = renderClientProvider({
             user: adminUser,
-            initialEntries: ["/?clientId=url-client"]
+            initialEntries: ["/dashboard?clientId=url-client"]
         });
 
         expect(getValue().clientId).toBe("url-client");
@@ -205,6 +215,19 @@ describe("ClientProvider", () => {
     });
 
     // --- Logout ---
+
+    it("does not sync clientId to URL on public pages", async () => {
+        const {getValue} = renderClientProvider({
+            user: mockUser,
+            initialEntries: ["/login"]
+        });
+
+        await act(async () => {
+            await new Promise(r => setTimeout(r, 0));
+        });
+
+        expect(getValue().appliedParams.get("clientId")).toBeNull();
+    });
 
     it("does not sync clientId to URL when user is disconnected", async () => {
         sessionStorage.setItem(SESSION_KEY, "stale-client");

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect} from "react";
-import {useNavigate} from "react-router-dom";
+import {Navigate} from "react-router-dom";
 import {useConnectedUserInfo} from "../providers/ConnectedUserProvider/hooks";
 import {useChatbot} from "../providers/ChatbotProvider/hooks";
 import {RouteInterface} from "../types/routeTypes";
@@ -28,7 +28,6 @@ const PublicAppTemplate: React.ComponentType<PublicAppTemplateProps> = (
      *                                                  HOOKS
      ******************************************************************************************************************/
 
-    const navigate = useNavigate();
     const {user} = useConnectedUserInfo();
     const {setIsChatbotEnabled} = useChatbot();
 
@@ -42,18 +41,15 @@ const PublicAppTemplate: React.ComponentType<PublicAppTemplateProps> = (
         return () => setIsChatbotEnabled(true);
     }, [setIsChatbotEnabled]);
 
-    // Redirect authenticated users to private area (unless page is opened)
-    useEffect(() => {
-        const isOpened = route.options?.opened === true;
-
-        if (user && !isOpened) {
-            navigate(defaultPrivateRoute.path);
-        }
-    }, [user, route.options, defaultPrivateRoute.path, navigate]);
-
     /*******************************************************************************************************************
      *                                                  RENDER
      ******************************************************************************************************************/
+
+    // Redirect authenticated users to private area (unless page is opened)
+    const isOpened = route.options?.opened === true;
+    if (user && !isOpened) {
+        return <Navigate to={defaultPrivateRoute.path} replace />;
+    }
 
     return (
         <>

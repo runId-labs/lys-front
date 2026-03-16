@@ -1,8 +1,11 @@
+import {RouteInterface} from "../../types/routeTypes";
+
 /**
  * ClientProvider props
  */
 export interface ClientProviderProps {
     children: React.ReactNode;
+    routes: RouteInterface[];
 }
 
 /**
