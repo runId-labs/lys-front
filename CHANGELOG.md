@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-28
+
+### Added
+
+- `useRestrictedLink` hook combining route permission checking with navigation via `useTransition`
+- Export `useRestrictedLink` hook and `RestrictedLink` type from `runid-lys/providers`
+
 ## [0.4.3] - 2026-03-16
 
 ### Changed

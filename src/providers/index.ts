@@ -29,6 +29,8 @@ export { useSignal, useSignalSubscription, useSignalRefresh } from "./SignalProv
 export { useLysQuery } from "./LysQueryProvider/hooks";
 export { useLysMutation } from "./LysMutationProvider/hooks";
 export { usePermissionCheck } from "./hooks/usePermissionCheck";
+export { useRestrictedLink } from "./hooks/useRestrictedLink";
+export type { RestrictedLink } from "./hooks/useRestrictedLink";
 export { useClientId } from "./ClientProvider/hooks";
 export type { ClientContextValue, ClientProviderProps } from "./ClientProvider/types";
 
