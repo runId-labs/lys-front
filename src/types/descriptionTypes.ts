@@ -9,6 +9,10 @@ export interface ComponentDescriptionType {
 export interface ChatbotBehaviourType {
     prompt?: string;
     contextTools?: Record<string, string>;
+    /** Mapped to `RouteInterface.autoOpenChatbot`. */
+    autoOpenOnEnter?: boolean;
+    /** Mapped to `RouteInterface.showChatbotWelcome`. */
+    showWelcomeMessage?: boolean;
 }
 
 export type PageDescriptionType = ComponentDescriptionType & {

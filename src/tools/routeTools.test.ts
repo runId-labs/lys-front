@@ -87,6 +87,37 @@ describe("generateRouteFromDescription", () => {
         const route = generateRouteFromDescription(pageDescription, "myApp.pages.");
         expect(route.transPrefix).toBe("myApp.pages.userProfile.");
     });
+
+    it("maps chatbot behaviour flags to route flags", () => {
+        const withChatbot: PageDescriptionType = {
+            ...pageDescription,
+            chatbotBehaviour: {
+                autoOpenOnEnter: true,
+                showWelcomeMessage: true,
+            },
+        };
+        const route = generateRouteFromDescription(withChatbot);
+        expect(route.autoOpenChatbot).toBe(true);
+        expect(route.showChatbotWelcome).toBe(true);
+    });
+
+    it("leaves chatbot flags undefined when chatbotBehaviour is absent", () => {
+        const route = generateRouteFromDescription(pageDescription);
+        expect(route.autoOpenChatbot).toBeUndefined();
+        expect(route.showChatbotWelcome).toBeUndefined();
+    });
+
+    it("propagates only the flags that are set", () => {
+        const withChatbot: PageDescriptionType = {
+            ...pageDescription,
+            chatbotBehaviour: {
+                autoOpenOnEnter: true,
+            },
+        };
+        const route = generateRouteFromDescription(withChatbot);
+        expect(route.autoOpenChatbot).toBe(true);
+        expect(route.showChatbotWelcome).toBeUndefined();
+    });
 });
 
 describe("generateRouteTable", () => {

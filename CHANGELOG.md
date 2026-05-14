@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-14
+
+### Added
+
+- `ChatbotBehaviourType.autoOpenOnEnter` flag, mapped to `RouteInterface.autoOpenChatbot` by `generateRouteFromDescription`
+- `ChatbotBehaviourType.showWelcomeMessage` flag, mapped to `RouteInterface.showChatbotWelcome` (welcome message resolved against `<transPrefix>chatbotWelcome`)
+
 ## [0.5.0] - 2026-03-28
 
 ### Added

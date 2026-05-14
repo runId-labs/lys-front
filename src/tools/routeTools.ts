@@ -65,6 +65,8 @@ export const generateRouteFromDescription = (
         breadcrumbs: pageDescription.breadcrumbs,
         options: pageDescription.options,
         mainWebserviceName: pageDescription.mainWebserviceName,
+        autoOpenChatbot: pageDescription.chatbotBehaviour?.autoOpenOnEnter,
+        showChatbotWelcome: pageDescription.chatbotBehaviour?.showWelcomeMessage,
     }
 }
 

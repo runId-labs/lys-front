@@ -25,4 +25,12 @@ export interface RouteInterface {
     mainWebserviceName?: string | undefined
     // functional description for AI context (chatbot navigation)
     description?: string
+    /** If true, the chatbot is automatically opened when the user enters this route. */
+    autoOpenChatbot?: boolean
+    /**
+     * If true, an empty-conversation welcome message is shown in the chatbot.
+     * The message is resolved against the translation key `<transPrefix>chatbotWelcome`;
+     * if no translation exists, react-intl displays the key as-is.
+     */
+    showChatbotWelcome?: boolean
 }
