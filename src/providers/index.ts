@@ -13,6 +13,7 @@ export { default as SignalProvider } from "./SignalProvider";
 export { default as LysQueryProvider } from "./LysQueryProvider";
 export { default as LysMutationProvider } from "./LysMutationProvider";
 export { default as ClientProvider } from "./ClientProvider";
+export { default as RouteProvider } from "./RouteProvider";
 
 // Hooks
 export { useAlertMessages } from "./AlertMessageProvider/hooks";
@@ -31,6 +32,10 @@ export { useLysMutation } from "./LysMutationProvider/hooks";
 export { usePermissionCheck } from "./hooks/usePermissionCheck";
 export { useRestrictedLink } from "./hooks/useRestrictedLink";
 export type { RestrictedLink } from "./hooks/useRestrictedLink";
+export { useRouteAccess } from "./hooks/useRouteAccess";
+export { useRouteInfo } from "./RouteProvider/hooks";
+export type { RouteContextValue } from "./RouteProvider/hooks";
+export type { RouteProviderProps, RouteTemplateProps } from "./RouteProvider";
 export { useClientId } from "./ClientProvider/hooks";
 export type { ClientContextValue, ClientProviderProps } from "./ClientProvider/types";
 

@@ -21,8 +21,13 @@ export interface RouteInterface {
     breadcrumbs?: string[]
     // extra option array to configure a specific route behaviour
     options?: {[key: string] : string | number | boolean}
-    // main webservice of the route (to check access)
-    mainWebserviceName?: string | undefined
+    /**
+     * Webservice(s) gating access to the route.
+     * - `string`: single webservice — user needs access to it.
+     * - `string[]`: any-of semantics — user needs access to at least one.
+     * - `undefined`: route has no permission gate.
+     */
+    mainWebserviceName?: string | string[] | undefined
     // functional description for AI context (chatbot navigation)
     description?: string
     /** If true, the chatbot is automatically opened when the user enters this route. */

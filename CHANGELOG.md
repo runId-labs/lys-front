@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `RouteProvider` exposing the active route, the route map and helpers via `useRouteInfo`, wiring page context and chatbot auto-open, and rendering project-supplied private/public templates
+- `useRouteAccess` hook centralizing route permission checks (supports `string` and `string[]` any-of semantics for `mainWebserviceName`)
+- Export `RouteProvider`, `useRouteInfo`, `useRouteAccess`, and related types (`RouteContextValue`, `RouteProviderProps`, `RouteTemplateProps`) from `runid-lys/providers`
+
+### Changed
+
+- `RouteInterface.mainWebserviceName` and `PageDescriptionType.mainWebserviceName` accept `string | string[]` (any-of) in addition to `string`
+- `useRestrictedLink` delegates permission checking to `useRouteAccess` so single/array semantics stay in one place
+
+### Fixed
+
+- Empty-string URL query params are no longer coerced to `0` when forwarded to the chatbot page context
+
 ## [0.6.0] - 2026-05-14
 
 ### Added

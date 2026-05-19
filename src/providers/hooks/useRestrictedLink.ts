@@ -1,6 +1,6 @@
 import {useCallback, useMemo, useTransition} from "react";
 import {useNavigate} from "react-router-dom";
-import {useWebserviceAccess} from "../WebserviceAccessProvider/hooks";
+import {useRouteAccess} from "./useRouteAccess";
 import {generateUrlByRoute} from "../../tools/routeTools";
 import {RouteInterface} from "../../types/routeTypes";
 
@@ -14,8 +14,9 @@ export interface RestrictedLink {
 /**
  * Hook to check route permission and provide navigation callback.
  *
- * Combines permission checking (via WebserviceAccessProvider) with
- * navigation (via react-router) for a given route.
+ * Combines permission checking (via WebserviceAccessProvider — delegated to
+ * `useRouteAccess` so the single/array `mainWebserviceName` semantics stay
+ * in one place) with navigation (via react-router) for a given route.
  *
  * Usage:
  * ```tsx
@@ -30,15 +31,11 @@ export function useRestrictedLink(
     parameters: {[key: string]: string} = EMPTY_PARAMS,
     queryParameters: {[key: string]: string} = EMPTY_PARAMS
 ): RestrictedLink {
-    const {checkWebserviceAccess} = useWebserviceAccess();
+    const hasAccess = useRouteAccess();
     const routerNavigate = useNavigate();
     const [, startTransition] = useTransition();
 
-    const hasPermission = useMemo(() => {
-        if (!route) return false;
-        if (!route.mainWebserviceName) return true;
-        return checkWebserviceAccess(route.mainWebserviceName);
-    }, [route, checkWebserviceAccess]);
+    const hasPermission = useMemo(() => hasAccess(route), [hasAccess, route]);
 
     const navigate = useCallback(() => {
         if (!route) return;
