@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Empty-string URL query params are no longer coerced to `0` when forwarded to the chatbot page context
+- `ChatbotProvider` resets its state (messages, conversation id, mode, streaming, refresh signal) when the connected user changes (login, logout, account switch) to prevent conversation leaks between accounts in the same browser session — implemented by keying the inner provider on `user?.id` so React unmounts the subtree atomically. Requires `ChatbotProvider` to be mounted inside `ConnectedUserProvider`.
 
 ## [0.6.0] - 2026-05-14
 

@@ -4,6 +4,8 @@ import ChatbotProvider from "./index";
 import {useChatbot} from "./hooks";
 import {ChatbotContextValue} from "./types";
 import {useRefreshSignal, RefreshSignal} from "../LysQueryProvider/RefreshSignalContext";
+import {ConnectedUserContext} from "../ConnectedUserProvider/hooks";
+import {createMockConnectedUserContext, mockUser} from "../../test/test-utils";
 
 /**
  * Test consumer exposing chatbot context
@@ -316,6 +318,104 @@ describe("ChatbotProvider", () => {
             });
 
             expect(getCtx().messages[0].content).toBe("Hello world!");
+        });
+    });
+
+    describe("reset on connected-user change", () => {
+        function renderWithUser(userId: string | undefined) {
+            let latestCtx: ChatbotContextValue | null = null;
+
+            const buildWrapper = (id: string | undefined) => (
+                <ConnectedUserContext.Provider
+                    value={createMockConnectedUserContext(
+                        id === undefined ? {user: undefined} : {user: {...mockUser, id}}
+                    )}
+                >
+                    <ChatbotProvider>
+                        <ChatbotConsumer onValue={(v) => {latestCtx = v;}}/>
+                    </ChatbotProvider>
+                </ConnectedUserContext.Provider>
+            );
+
+            const result = render(buildWrapper(userId));
+
+            return {
+                result,
+                getCtx: () => latestCtx!,
+                rerenderWithUser: (nextId: string | undefined) =>
+                    result.rerender(buildWrapper(nextId)),
+            };
+        }
+
+        it("resets messages and conversationId when user.id changes", () => {
+            const {getCtx, rerenderWithUser} = renderWithUser("user-a");
+
+            act(() => {
+                getCtx().addMessage({role: "user", content: "hi from A"});
+                getCtx().setConversationId("conv-A");
+            });
+
+            expect(getCtx().messages).toHaveLength(1);
+            expect(getCtx().conversationId).toBe("conv-A");
+
+            act(() => {
+                rerenderWithUser("user-b");
+            });
+
+            expect(getCtx().messages).toEqual([]);
+            expect(getCtx().conversationId).toBeNull();
+        });
+
+        it("resets chatbot mode and streaming flags when user.id changes", () => {
+            const {getCtx, rerenderWithUser} = renderWithUser("user-a");
+
+            act(() => {
+                getCtx().setIsChatbotMode(true);
+                getCtx().setIsStreaming(true);
+            });
+
+            expect(getCtx().isChatbotMode).toBe(true);
+            expect(getCtx().isStreaming).toBe(true);
+
+            act(() => {
+                rerenderWithUser("user-b");
+            });
+
+            expect(getCtx().isChatbotMode).toBe(false);
+            expect(getCtx().isStreaming).toBe(false);
+        });
+
+        it("resets state on logout (user becomes undefined)", () => {
+            const {getCtx, rerenderWithUser} = renderWithUser("user-a");
+
+            act(() => {
+                getCtx().addMessage({role: "assistant", content: "secret"});
+                getCtx().setConversationId("conv-A");
+            });
+
+            act(() => {
+                rerenderWithUser(undefined);
+            });
+
+            expect(getCtx().messages).toEqual([]);
+            expect(getCtx().conversationId).toBeNull();
+        });
+
+        it("preserves state when user.id stays the same (e.g. token refresh)", () => {
+            const {getCtx, rerenderWithUser} = renderWithUser("user-a");
+
+            act(() => {
+                getCtx().addMessage({role: "user", content: "ongoing"});
+                getCtx().setConversationId("conv-A");
+            });
+
+            act(() => {
+                rerenderWithUser("user-a");
+            });
+
+            expect(getCtx().messages).toHaveLength(1);
+            expect(getCtx().messages[0].content).toBe("ongoing");
+            expect(getCtx().conversationId).toBe("conv-A");
         });
     });
 

@@ -2,6 +2,7 @@ import React, {useState, useCallback, useMemo} from "react";
 import {ChatbotContext} from "./hooks";
 import {ChatMessage, RefreshSignal} from "./types";
 import RefreshSignalContext from "../LysQueryProvider/RefreshSignalContext";
+import {useConnectedUserInfo} from "../ConnectedUserProvider/hooks";
 
 interface ChatbotProviderProps {
     children: React.ReactNode;
@@ -15,10 +16,25 @@ interface ChatbotProviderProps {
  * - Conversation ID tracking
  * - Chatbot mode state (open/closed)
  *
- * Place this provider high in the component tree (above RouteProvider)
- * to ensure state persists across route changes.
+ * Place this provider high in the component tree (above RouteProvider) to
+ * ensure state persists across route changes, and inside ConnectedUserProvider
+ * so the chatbot state is reset whenever the connected user changes (login,
+ * logout, account switch). The reset is implemented by keying the inner
+ * provider on `user?.id`: React unmounts the entire subtree on key change,
+ * destroying every state slice atomically — prevents conversation leaks
+ * between accounts on the same browser session without any imperative reset
+ * code or per-field bookkeeping.
  */
 const ChatbotProvider: React.FC<ChatbotProviderProps> = ({children}) => {
+    const {user} = useConnectedUserInfo();
+    return (
+        <ChatbotProviderInner key={user?.id ?? "anonymous"}>
+            {children}
+        </ChatbotProviderInner>
+    );
+};
+
+const ChatbotProviderInner: React.FC<ChatbotProviderProps> = ({children}) => {
     /*******************************************************************************************************************
      *                                                  STATES
      ******************************************************************************************************************/
