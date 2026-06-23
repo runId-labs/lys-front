@@ -1,4 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from "vitest";
+import {StrictMode} from "react";
 import {render, act, screen} from "@testing-library/react";
 import {AlertMessageContext} from "../AlertMessageProvider/hooks";
 import LocaleProvider from "../LocaleProvider";
@@ -68,13 +69,13 @@ const mockMessages = {
     "lys.services.i18n.messages.sessionExpired": "Session expired",
 };
 
-function renderConnectedUserProvider() {
+function renderConnectedUserProvider({strict = false}: {strict?: boolean} = {}) {
     const alertMerge = vi.fn();
     let latestCtx: ReturnType<typeof useConnectedUserInfo> | null = null;
 
     const messageSources: Record<string, Record<string, string>> = {en: mockMessages, fr: {}};
 
-    const result = render(
+    const tree = (
         <LocaleProvider defaultLocale="en" messageSources={messageSources}>
             <AlertMessageContext.Provider value={{merge: alertMerge}}>
                 <ConnectedUserProvider>
@@ -83,6 +84,8 @@ function renderConnectedUserProvider() {
             </AlertMessageContext.Provider>
         </LocaleProvider>
     );
+
+    const result = render(strict ? <StrictMode>{tree}</StrictMode> : tree);
 
     return {result, getCtx: () => latestCtx!, alertMerge};
 }
@@ -181,6 +184,81 @@ describe("ConnectedUserProvider", () => {
             });
 
             expect(callback).toHaveBeenCalledOnce();
+        });
+
+        it("buffers webservices while a refresh is in flight then flushes them once it completes", () => {
+            // Hold every refresh in-flight so we can resolve it manually.
+            const refreshCompleters: Array<(r: any, e: any) => void> = [];
+            mockCommitRefresh = vi.fn((config) => {
+                if (config.onCompleted) refreshCompleters.push(config.onCompleted);
+            });
+            // Log in with an already-expired token so push triggers a refresh and buffers.
+            mockCommitLogin = vi.fn((config) => {
+                config.onCompleted?.({login: {accessTokenExpireIn: Date.now() / 1000 - 100}}, null);
+            });
+            mockQueryRef = {__id: "test"};
+
+            const {getCtx} = renderConnectedUserProvider();
+
+            act(() => {
+                const [loginFn] = getCtx().login;
+                loginFn("user@test.com", "pw");
+            });
+
+            const ws1 = vi.fn();
+            const ws2 = vi.fn();
+
+            // Token expired -> first push starts the refresh, both pushes buffer
+            act(() => {
+                getCtx().push(ws1);
+                getCtx().push(ws2);
+            });
+
+            expect(ws1).not.toHaveBeenCalled();
+            expect(ws2).not.toHaveBeenCalled();
+
+            // Refresh completes -> token valid -> buffer flushes
+            act(() => {
+                refreshCompleters.forEach((fn) =>
+                    fn({refreshAccessToken: {accessTokenExpireIn: Date.now() / 1000 + 3600}}, null));
+            });
+
+            expect(ws1).toHaveBeenCalledOnce();
+            expect(ws2).toHaveBeenCalledOnce();
+        });
+
+        it("flushes each buffered webservice exactly once under StrictMode", () => {
+            // StrictMode double-invokes state updaters; this guards against the
+            // regression where the flush ran inside the setState updater and
+            // therefore fired every buffered request twice.
+            const refreshCompleters: Array<(r: any, e: any) => void> = [];
+            mockCommitRefresh = vi.fn((config) => {
+                if (config.onCompleted) refreshCompleters.push(config.onCompleted);
+            });
+            mockCommitLogin = vi.fn((config) => {
+                config.onCompleted?.({login: {accessTokenExpireIn: Date.now() / 1000 - 100}}, null);
+            });
+            mockQueryRef = {__id: "test"};
+
+            const {getCtx} = renderConnectedUserProvider({strict: true});
+
+            act(() => {
+                const [loginFn] = getCtx().login;
+                loginFn("user@test.com", "pw");
+            });
+
+            const ws = vi.fn();
+
+            act(() => {
+                getCtx().push(ws);
+            });
+
+            act(() => {
+                refreshCompleters.forEach((fn) =>
+                    fn({refreshAccessToken: {accessTokenExpireIn: Date.now() / 1000 + 3600}}, null));
+            });
+
+            expect(ws).toHaveBeenCalledOnce();
         });
     });
 

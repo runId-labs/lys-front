@@ -74,7 +74,7 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
      ******************************************************************************************************************/
 
     const [accessTokenExpireIn, setAccessTokenExpireIn] = useState<number | undefined>(undefined)
-    const [_webserviceBuffer, setWebserviceBuffer] = useState<(() => void)[]>([])
+    const [webserviceBuffer, setWebserviceBuffer] = useState<(() => void)[]>([])
     const isRefreshInflightRef = useRef<boolean>(false)
     const refreshCallbacksRef = useRef<Array<() => void>>([])
 
@@ -330,22 +330,22 @@ const ConnectedUserProviderInner = forwardRef<ConnectedUserProviderRefInterface,
             ? (accessTokenExpireIn - timeStampSecondNow > 5)
             : true  // If no expiration info (public/unauthenticated), consider valid
 
-        if (isValid && !isRefreshInflightRef.current) {
-            setWebserviceBuffer(currentBuffer => {
-                if (currentBuffer.length > 0) {
-                    // Execute all buffered webservices
-                    currentBuffer.forEach((webservice) => {
-                        try {
-                            webservice()
-                        } catch (error) {
-                            console.error('Error executing buffered webservice:', error)
-                        }
-                    })
+        if (isValid && !isRefreshInflightRef.current && webserviceBuffer.length > 0) {
+            // Snapshot and clear BEFORE executing so the setState updater stays pure.
+            // A side effect inside the updater would be run twice by React's
+            // StrictMode / concurrent double-invocation, firing each buffered
+            // request twice.
+            const toRun = webserviceBuffer
+            setWebserviceBuffer([])
+            toRun.forEach((webservice) => {
+                try {
+                    webservice()
+                } catch (error) {
+                    console.error('Error executing buffered webservice:', error)
                 }
-                return []  // Clear buffer
             })
         }
-    }, [accessTokenExpireIn])
+    }, [accessTokenExpireIn, webserviceBuffer])
 
     // Update locale when user language changes
     useEffect(() => {
