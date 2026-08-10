@@ -170,6 +170,12 @@ const QueryErrorBoundary: React.ComponentType<{
     );
 };
 
+// Stable default references — a literal default value (`parameters = {}`) is
+// re-evaluated on every call, so callers who don't pass these props feed a new
+// object into the load effect's dependency array (below) on every render.
+const DEFAULT_QUERY_PARAMETERS = {};
+const DEFAULT_QUERY_OPTIONS = {fetchPolicy: 'store-and-network' as const};
+
 /**
  * LysQueryProvider - Manages GraphQL queries with permission checking
  *
@@ -183,8 +189,8 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
     {
         query,
         initialQueryReference,
-        parameters = {},
-        options = {fetchPolicy: 'store-and-network'},
+        parameters = DEFAULT_QUERY_PARAMETERS,
+        options = DEFAULT_QUERY_OPTIONS,
         accessParameters,
         children,
         as: Container = "div",
@@ -219,6 +225,10 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
     // Track last processed refresh signal version
     const lastRefreshVersionRef = useRef(0);
 
+    // Track which queryReference the current `data` was resolved from, so isLoading (below)
+    // can tell "in flight" apart from "resolved" on a reload — not just on the first load.
+    const resolvedQueryReferenceRef = useRef<PreloadedQuery<TQuery> | null | undefined>(null);
+
     /*******************************************************************************************************************
      *                                                  STATES
      ******************************************************************************************************************/
@@ -234,6 +244,14 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
         disposeQuery();
         setLoad(true);
     }, [disposeQuery]);
+
+    // Called from LysQueryProviderChild's effect once Suspense/usePreloadedQuery resolves for
+    // this specific queryReference. Recorded alongside the data so isLoading can tell whether
+    // the data on hand actually corresponds to the query currently in flight.
+    const handleChildData = useCallback((newData: TQuery["response"]) => {
+        resolvedQueryReferenceRef.current = queryReference;
+        setData(newData);
+    }, [queryReference]);
 
     /*******************************************************************************************************************
      *                                                  EFFECTS
@@ -270,13 +288,25 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
 
     /**
      * Expose ref interface using useImperativeHandle
+     *
+     * isLoading covers the whole in-flight window, not just the one render before
+     * loadQuery() is dispatched: `load` flips back to false as soon as the query loader
+     * is called (see the effect above), but the query reference stays set — and data
+     * stays stale (or undefined, on a first load) — until Relay actually resolves it. A
+     * consumer polling `!isLoading && !data` to decide whether to call load() would
+     * otherwise see a false "idle" window mid-flight and re-trigger, disposing the
+     * in-flight query before it ever resolves (infinite retrigger loop). Comparing against
+     * resolvedQueryReferenceRef (not just `data === undefined`) keeps this correct on a
+     * reload too, where `data` still holds the previous, stale result.
      */
+    const isLoading = load || (!!queryReference && resolvedQueryReferenceRef.current !== queryReference);
+
     useImperativeHandle(ref, () => ({
         hasPermission,
         data,
-        isLoading: load,
+        isLoading,
         load: reloadQuery
-    }), [hasPermission, data, load, reloadQuery]);
+    }), [hasPermission, data, isLoading, reloadQuery]);
 
     /*******************************************************************************************************************
      *                                                  RENDER
@@ -294,7 +324,7 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
                         <QueryErrorBoundary
                             query={query}
                             queryReference={queryReference}
-                            setData={setData}
+                            setData={handleChildData}
                             reloadQuery={reloadQuery}
                         />
                     )}

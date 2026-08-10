@@ -17,11 +17,14 @@ let mockLoadQuery: ReturnType<typeof vi.fn>;
 let mockDisposeQuery: ReturnType<typeof vi.fn>;
 let mockPreloadedData: Record<string, unknown> = {};
 let mockPreloadedError: Error | null = null;
+// When set, usePreloadedQuery throws it to simulate a query still in flight (Suspense)
+let mockPreloadedSuspender: Promise<unknown> | null = null;
 
 vi.mock("react-relay", () => ({
     graphql: (strings: TemplateStringsArray) => ({__mock: true, text: strings[0]}),
     useQueryLoader: () => [mockQueryRef, mockLoadQuery, mockDisposeQuery],
     usePreloadedQuery: () => {
+        if (mockPreloadedSuspender) throw mockPreloadedSuspender;
         if (mockPreloadedError) throw mockPreloadedError;
         return mockPreloadedData;
     },
@@ -112,6 +115,7 @@ describe("LysQueryProvider", () => {
         mockDisposeQuery = vi.fn();
         mockPreloadedData = {};
         mockPreloadedError = null;
+        mockPreloadedSuspender = null;
     });
 
     describe("permission checking", () => {
@@ -338,6 +342,111 @@ describe("LysQueryProvider", () => {
             expect(alertMerge).not.toHaveBeenCalled();
 
             spy.mockRestore();
+        });
+    });
+
+    describe("loading state (isLoading)", () => {
+        // Builds the provider tree with a ref attached so tests can read the
+        // imperative interface (hasPermission, data, isLoading, load).
+        const buildTree = (ref: React.Ref<any>) => (
+            <AlertMessageContext.Provider value={{merge: vi.fn()}}>
+                <ConnectedUserContext.Provider value={createMockConnectedUserContext()}>
+                    <WebserviceAccessContext.Provider value={createMockWebserviceAccessContext()}>
+                        <RefreshSignalContext.Provider value={{nodes: [], version: 0}}>
+                            <LysLoadingContext.Provider value={{loadingFallback: null}}>
+                                <LysQueryProvider query={mockQuery} ref={ref}>
+                                    <div>Child</div>
+                                </LysQueryProvider>
+                            </LysLoadingContext.Provider>
+                        </RefreshSignalContext.Provider>
+                    </WebserviceAccessContext.Provider>
+                </ConnectedUserContext.Provider>
+            </AlertMessageContext.Provider>
+        );
+
+        it("reports isLoading=false when idle (no query requested)", () => {
+            mockQueryRef = null;
+            const ref = React.createRef<any>();
+
+            render(buildTree(ref));
+
+            expect(ref.current.isLoading).toBe(false);
+            expect(ref.current.data).toBeUndefined();
+        });
+
+        it("reports isLoading=false once the query resolves", () => {
+            mockQueryRef = {__id: "ref"};
+            mockPreloadedData = {viewer: {name: "Test"}};
+            const ref = React.createRef<any>();
+
+            render(buildTree(ref));
+
+            expect(ref.current.isLoading).toBe(false);
+            expect(ref.current.data).toEqual({viewer: {name: "Test"}});
+        });
+
+        it("reports isLoading=true while the query reference is in flight (unresolved)", () => {
+            mockQueryRef = {__id: "ref"};
+            mockPreloadedSuspender = new Promise(() => {}); // never resolves: child stays suspended
+            const ref = React.createRef<any>();
+
+            const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+            render(buildTree(ref));
+            spy.mockRestore();
+
+            // queryReference is set but no data was ever resolved for it
+            expect(ref.current.isLoading).toBe(true);
+        });
+
+        it("reports isLoading=true during a reload while stale data is still present", () => {
+            mockQueryRef = {__id: "ref"};
+            mockPreloadedData = {v: 1};
+            const ref = React.createRef<any>();
+
+            render(buildTree(ref));
+
+            // Resolved first load: not loading, data present
+            expect(ref.current.isLoading).toBe(false);
+            expect(ref.current.data).toEqual({v: 1});
+
+            // A reload flips the loading flag back on; the previous result stays
+            // on screen until the reloaded query resolves. isLoading must reflect
+            // "in flight" even though `data` is still defined.
+            act(() => {
+                ref.current.load();
+            });
+
+            expect(ref.current.data).toEqual({v: 1});
+            expect(ref.current.isLoading).toBe(true);
+        });
+    });
+
+    describe("default query parameters", () => {
+        it("loads with default empty parameters and store-and-network fetch policy", () => {
+            mockQueryRef = null;
+            const ref = React.createRef<any>();
+
+            render(
+                <AlertMessageContext.Provider value={{merge: vi.fn()}}>
+                    <ConnectedUserContext.Provider value={createMockConnectedUserContext()}>
+                        <WebserviceAccessContext.Provider value={createMockWebserviceAccessContext()}>
+                            <RefreshSignalContext.Provider value={{nodes: [], version: 0}}>
+                                <LysLoadingContext.Provider value={{loadingFallback: null}}>
+                                    <LysQueryProvider query={mockQuery} ref={ref}>
+                                        <div>Child</div>
+                                    </LysQueryProvider>
+                                </LysLoadingContext.Provider>
+                            </RefreshSignalContext.Provider>
+                        </WebserviceAccessContext.Provider>
+                    </ConnectedUserContext.Provider>
+                </AlertMessageContext.Provider>
+            );
+
+            act(() => {
+                ref.current.load();
+            });
+
+            expect(mockLoadQuery).toHaveBeenCalledWith({}, {fetchPolicy: "store-and-network"});
         });
     });
 

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LysQueryProvider` now reports `isLoading` for the whole in-flight window instead of only the single render before `loadQuery()` is dispatched: loading stays `true` from request until Relay resolves the current query reference (tracked via `resolvedQueryReferenceRef`), which stays correct on reloads where stale `data` is still present. Prevents a consumer polling `!isLoading && !data` from re-triggering mid-flight and disposing the in-flight query (infinite retrigger loop)
+- `LysQueryProvider` default `parameters`/`options` props now use stable module-level references instead of inline literals, so callers omitting them no longer feed a new object into the load effect's dependency array on every render
 - Empty-string URL query params are no longer coerced to `0` when forwarded to the chatbot page context
 - `ChatbotProvider` resets its state (messages, conversation id, mode, streaming, refresh signal) when the connected user changes (login, logout, account switch) to prevent conversation leaks between accounts in the same browser session — implemented by keying the inner provider on `user?.id` so React unmounts the subtree atomically. Requires `ChatbotProvider` to be mounted inside `ConnectedUserProvider`.
 - `ConnectedUserProvider` no longer fires each buffered webservice twice: the buffer flush is now performed outside the `setWebserviceBuffer` updater, which React double-invokes under StrictMode/concurrent rendering
