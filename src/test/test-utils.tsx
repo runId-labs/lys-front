@@ -13,6 +13,7 @@ import {AlertMessageContext} from "../providers/AlertMessageProvider/hooks";
 export const mockUser: ConnectedUserInterface = {
     id: "test-user-id-123",
     clientId: "test-client-id-456",
+    client: {name: "Test Client"},
     emailAddress: {
         id: "email-id-1",
         address: "test@example.com",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<656875e1bf06623a68fff1a35296db4e>>
+ * @generated SignedSource<<d3d2b42d44f6ca73064982865e39be55>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -86,6 +86,25 @@ return {
             "args": null,
             "kind": "ScalarField",
             "name": "clientId",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ClientNode",
+            "kind": "LinkedField",
+            "name": "client",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              (v0/*: any*/)
+            ],
             "storageKey": null
           },
           {
@@ -197,12 +216,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "654e16a74dc1101f903a371ee713c943",
+    "cacheID": "d3e316fb43b8385087c75abfd7e0b28b",
     "id": null,
     "metadata": {},
     "name": "ConnectedUserProviderQuery",
     "operationKind": "query",
-    "text": "query ConnectedUserProviderQuery {\n  connectedUser {\n    ...ConnectedUserFragment_user\n    id\n  }\n}\n\nfragment ConnectedUserFragment_user on UserNode {\n  id\n  clientId\n  emailAddress {\n    id\n    address\n    createdAt\n    updatedAt\n    validatedAt\n    lastValidationRequestAt\n  }\n  status {\n    id\n    code\n  }\n  language {\n    id\n    code\n  }\n  privateData {\n    firstName\n    lastName\n    gender {\n      id\n      code\n    }\n    id\n  }\n}\n"
+    "text": "query ConnectedUserProviderQuery {\n  connectedUser {\n    ...ConnectedUserFragment_user\n    id\n  }\n}\n\nfragment ConnectedUserFragment_user on UserNode {\n  id\n  clientId\n  client {\n    name\n    id\n  }\n  emailAddress {\n    id\n    address\n    createdAt\n    updatedAt\n    validatedAt\n    lastValidationRequestAt\n  }\n  status {\n    id\n    code\n  }\n  language {\n    id\n    code\n  }\n  privateData {\n    firstName\n    lastName\n    gender {\n      id\n      code\n    }\n    id\n  }\n}\n"
   }
 };
 })();

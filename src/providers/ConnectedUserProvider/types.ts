@@ -60,11 +60,19 @@ export interface GenderInterface {
 }
 
 /**
+ * Client organization interface (null for supervisors)
+ */
+export interface ClientInterface {
+    name: string
+}
+
+/**
  * Connected user interface
  */
 export interface ConnectedUserInterface {
     id: string
     clientId: string | null
+    client: ClientInterface | null
     emailAddress: EmailAddressInterface
     status: UserStatusInterface
     language: LanguageInterface

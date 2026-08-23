@@ -15,6 +15,9 @@ export const ConnectedUserFragment = graphql`
     fragment ConnectedUserFragment_user on UserNode {
         id
         clientId
+        client {
+            name
+        }
         emailAddress {
             id
             address
