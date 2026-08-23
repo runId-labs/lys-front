@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `DatedAlertMessageType.count`: `AlertMessageProvider` now dedupes repeated messages matching on both `text` and `level` — instead of adding a new entry, it increments `count` and refreshes `createdAt` on the existing one
 - `ConnectedUserInterface.client` (`{name: string} | null`) exposing the connected user's client organization name, sourced from `ConnectedUserFragment_user.client.name`
 - Billing mode and catalogue administration error translations (`PROVIDER_SUBSCRIPTION_ACTIVE`, `UNKNOWN_BILLING_MODE`, `PLAN_VERSION_PRICE_NOT_FOUND`, `PLAN_NOT_AVAILABLE`, `PLAN_VERSION_NOT_FOUND`, `PLAN_VERSION_NOT_PRICED`, `DUPLICATE_PRICE`, `INVALID_PRICE_AMOUNT`, `UNKNOWN_PRICE_PERIOD`, `UNKNOWN_CURRENCY`, `UNKNOWN_COMMITMENT`, `INVALID_COMMITMENT_DURATION`, `NO_RULE_ON_VERSION`, `DUPLICATE_RULE`, `UNKNOWN_RULE`, `INVALID_RULE_LIMIT`)
 - `RouteProvider` exposing the active route, the route map and helpers via `useRouteInfo`, wiring page context and chatbot auto-open, and rendering project-supplied private/public templates

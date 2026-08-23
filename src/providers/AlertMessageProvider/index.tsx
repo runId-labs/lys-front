@@ -37,31 +37,52 @@ const AlertMessageProvider: React.ComponentType<AlertMessageProviderProps> = (
     }, []);
 
     /**
-     * Merge new messages into the state
+     * Merge new messages into the state.
+     * Messages matching an existing one on both text and level are not duplicated:
+     * the existing entry's count is incremented and its createdAt refreshed instead.
      */
     const handleMerge = useCallback((messages_: { text: string; level: string }[]) => {
         if (messages_.length > 0) {
-            const datedMessages = messages_.map((message) => {
-                // Log to console
-                const logMethod = message.level === "CRITICAL" || message.level === "ERROR"
-                    ? console.error
-                    : message.level === "WARNING"
-                    ? console.warn
-                    : console.log;
+            setMessages(prev => {
+                const next = [...prev];
 
-                logMethod(`[${message.level}]`, message.text);
+                messages_.forEach((message) => {
+                    // Log to console
+                    const logMethod = message.level === "CRITICAL" || message.level === "ERROR"
+                        ? console.error
+                        : message.level === "WARNING"
+                        ? console.warn
+                        : console.log;
 
-                // Generate unique ID
-                messageIdCounter.current += 1;
-                const uniqueId = `alert-${Date.now()}-${messageIdCounter.current}`;
+                    logMethod(`[${message.level}]`, message.text);
 
-                return {
-                    ...message,
-                    id: uniqueId,
-                    createdAt: new Date()
-                }
-            }) as DatedAlertMessageType[];
-            setMessages(prev => [...prev, ...datedMessages]);
+                    const existingIndex = next.findIndex(
+                        (existing) => existing.text === message.text && existing.level === message.level
+                    );
+
+                    if (existingIndex !== -1) {
+                        next[existingIndex] = {
+                            ...next[existingIndex],
+                            count: next[existingIndex].count + 1,
+                            createdAt: new Date()
+                        };
+                        return;
+                    }
+
+                    // Generate unique ID
+                    messageIdCounter.current += 1;
+                    const uniqueId = `alert-${Date.now()}-${messageIdCounter.current}`;
+
+                    next.push({
+                        ...message,
+                        id: uniqueId,
+                        createdAt: new Date(),
+                        count: 1
+                    } as DatedAlertMessageType);
+                });
+
+                return next;
+            });
         }
     }, []);
 

@@ -14,11 +14,12 @@ export interface AlertMessageInterface {
 }
 
 /**
- * Alert message with timestamp and unique ID
+ * Alert message with timestamp, unique ID, and occurrence count
  */
 export type DatedAlertMessageType = AlertMessageInterface & {
     id: string;
     createdAt: Date;
+    count: number;
 }
 
 /**

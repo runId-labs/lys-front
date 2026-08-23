@@ -207,4 +207,108 @@ describe("AlertMessageProvider", () => {
 
         vi.restoreAllMocks();
     });
+
+    it("assigns count 1 to a newly merged message", () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        const {alertGenerator, merge} = renderWithAlertProvider();
+
+        act(() => {
+            merge([{text: "Info message", level: "INFO"}]);
+        });
+
+        const lastCall = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1];
+        const messages: DatedAlertMessageType[] = lastCall[0];
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0].count).toBe(1);
+
+        vi.restoreAllMocks();
+    });
+
+    it("dedupes a message with the same text and level by incrementing its count", () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        const {alertGenerator, merge} = renderWithAlertProvider();
+
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+
+        const lastCall = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1];
+        const messages: DatedAlertMessageType[] = lastCall[0];
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0].count).toBe(3);
+
+        vi.restoreAllMocks();
+    });
+
+    it("keeps the same id when an existing message is re-merged", () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        const {alertGenerator, merge} = renderWithAlertProvider();
+
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        const firstId = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1][0][0].id;
+
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        const secondId = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1][0][0].id;
+
+        expect(secondId).toBe(firstId);
+
+        vi.restoreAllMocks();
+    });
+
+    it("does not dedupe messages with the same text but a different level", () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const {alertGenerator, merge} = renderWithAlertProvider();
+
+        act(() => {
+            merge([{text: "Same text", level: "INFO"}]);
+        });
+        act(() => {
+            merge([{text: "Same text", level: "WARNING"}]);
+        });
+
+        const lastCall = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1];
+        const messages: DatedAlertMessageType[] = lastCall[0];
+
+        expect(messages).toHaveLength(2);
+        expect(messages[0].count).toBe(1);
+        expect(messages[1].count).toBe(1);
+
+        vi.restoreAllMocks();
+    });
+
+    it("refreshes createdAt when an existing message is re-merged", () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+        const {alertGenerator, merge} = renderWithAlertProvider();
+
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        const firstCreatedAt = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1][0][0].createdAt;
+
+        vi.setSystemTime(new Date("2026-01-01T00:05:00.000Z"));
+        act(() => {
+            merge([{text: "Duplicate", level: "INFO"}]);
+        });
+        const secondCreatedAt = alertGenerator.mock.calls[alertGenerator.mock.calls.length - 1][0][0].createdAt;
+
+        expect(secondCreatedAt.getTime()).toBeGreaterThan(firstCreatedAt.getTime());
+
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
 });
