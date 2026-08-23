@@ -197,6 +197,74 @@ export const errorTranslations = {
     MAX_LICENSED_USERS_REACHED: {
         en: "License quota exceeded. Please upgrade your subscription.",
         fr: "Quota de licences dépassé. Veuillez mettre à niveau votre abonnement."
+    },
+
+    // Billing mode errors
+    PROVIDER_SUBSCRIPTION_ACTIVE: {
+        en: "This subscription is still collected automatically. Cancel it and wait for the cancellation to take effect before billing manually.",
+        fr: "Cet abonnement est encore prélevé automatiquement. Résiliez-le et attendez que la résiliation prenne effet avant de facturer manuellement."
+    },
+    UNKNOWN_BILLING_MODE: {
+        en: "This billing mode does not exist or is disabled.",
+        fr: "Ce mode de facturation n'existe pas ou est désactivé."
+    },
+    PLAN_VERSION_PRICE_NOT_FOUND: {
+        en: "This price does not exist.",
+        fr: "Ce tarif n'existe pas."
+    },
+
+    // Catalogue administration errors
+    PLAN_NOT_AVAILABLE: {
+        en: "This plan is not available for a new subscription.",
+        fr: "Cette offre n'est pas disponible pour une nouvelle souscription."
+    },
+    PLAN_VERSION_NOT_FOUND: {
+        en: "This plan version does not exist.",
+        fr: "Cette version d'offre n'existe pas."
+    },
+    PLAN_VERSION_NOT_PRICED: {
+        en: "This plan version has no price for the requested terms.",
+        fr: "Cette version d'offre n'a pas de tarif pour les conditions demandées."
+    },
+    DUPLICATE_PRICE: {
+        en: "Two prices share the same billing period, currency and commitment.",
+        fr: "Deux tarifs partagent la même périodicité, devise et engagement."
+    },
+    INVALID_PRICE_AMOUNT: {
+        en: "A price must be a strictly positive amount.",
+        fr: "Un tarif doit être un montant strictement positif."
+    },
+    UNKNOWN_PRICE_PERIOD: {
+        en: "This billing period does not exist or is disabled.",
+        fr: "Cette périodicité de facturation n'existe pas ou est désactivée."
+    },
+    UNKNOWN_CURRENCY: {
+        en: "This currency does not exist or is disabled.",
+        fr: "Cette devise n'existe pas ou est désactivée."
+    },
+    UNKNOWN_COMMITMENT: {
+        en: "This commitment does not exist or is disabled.",
+        fr: "Cet engagement n'existe pas ou est désactivé."
+    },
+    INVALID_COMMITMENT_DURATION: {
+        en: "This commitment does not span a whole number of billing periods.",
+        fr: "Cet engagement ne couvre pas un nombre entier de périodes de facturation."
+    },
+    NO_RULE_ON_VERSION: {
+        en: "A plan version must declare at least one rule. Leave a limit empty to grant it without a cap.",
+        fr: "Une version d'offre doit déclarer au moins une règle. Laissez une limite vide pour l'accorder sans plafond."
+    },
+    DUPLICATE_RULE: {
+        en: "The same rule is set twice on this version.",
+        fr: "La même règle est définie deux fois sur cette version."
+    },
+    UNKNOWN_RULE: {
+        en: "This rule does not exist or is disabled.",
+        fr: "Cette règle n'existe pas ou est désactivée."
+    },
+    INVALID_RULE_LIMIT: {
+        en: "A quota limit cannot be negative.",
+        fr: "La limite d'un quota ne peut pas être négative."
     }
 } satisfies Record<string, Record<I18nLocaleEnum, string>>;
 
