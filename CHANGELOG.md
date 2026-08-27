@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-27
+
+No functional changes — `0.11.0` was already taken on the npm registry
+(previous publish attempt succeeded despite a reported OTP error), so this
+version republishes the same content under a free version number.
+
 ## [0.11.0] - 2026-08-27
 
 ### Added
