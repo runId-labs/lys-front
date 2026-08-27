@@ -2,8 +2,7 @@
 
 Logic-only React frontend framework for the lys ecosystem (`runid-lys` on
 npm): providers, hooks, tools and types — no UI components, no styles. It is
-designed to be consumed by application projects (e.g., `financial-front`) via
-subpath imports.
+designed to be consumed by application projects via subpath imports.
 
 ## For agents working on lys-front itself
 

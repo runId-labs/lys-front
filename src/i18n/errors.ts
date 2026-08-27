@@ -3,10 +3,10 @@ import {I18nLocaleEnum} from "../types/i18nTypes";
 /**
  * System error message translations
  *
- * Error constants match those defined in the backend:
- * - mimir-api/app/libs/lys/src/lys/core/consts/errors.py
- * - mimir-api/app/libs/lys/src/lys/apps/user_auth/errors.py
- * - mimir-api/app/libs/lys/src/lys/apps/user_role/errors.py
+ * Error constants match those defined in the lys backend:
+ * - lys.core.consts.errors
+ * - lys.apps.user_auth.errors
+ * - lys.apps.user_role.errors
  *
  * Plus frontend-specific errors (REACT_RENDER_ERROR, NETWORK_ERROR, etc.)
  */
