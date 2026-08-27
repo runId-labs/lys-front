@@ -27,7 +27,8 @@
     "LICENSE",
     "NOTICE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "agents"
   ],
   "type": "module",
   "main": "dist/index.js",

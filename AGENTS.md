@@ -1,32 +1,23 @@
-# CLAUDE.md
+# AGENTS.md — lys-front
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Logic-only React frontend framework for the lys ecosystem (`runid-lys` on
+npm): providers, hooks, tools and types — no UI components, no styles. It is
+designed to be consumed by application projects (e.g., `financial-front`) via
+subpath imports.
 
-## Project Overview
+## For agents working on lys-front itself
 
-Lys-front (`runid-lys` on npm) is the frontend framework library for the lys ecosystem. It provides logic-only React providers, hooks, tools, and types — no UI components, no styles. It is designed to be consumed by application projects (e.g., `financial-front`) via subpath imports.
+### Codebase map
 
-## Codebase Map
+#### Providers: `src/providers/`
 
-### Providers: `src/providers/`
+One directory per provider (hooks co-located; `src/providers/hooks/` holds the
+standalone ones). The authoritative catalog — provider purpose, key hooks and
+usage rules — is `agents/guides/providers.md` (shipped in the npm package).
+When adding, removing or changing a provider, update that guide IN THE SAME
+commit.
 
-| Provider | Purpose |
-|----------|---------|
-| `ConnectedUserProvider` | Authentication, JWT refresh, login/logout mutations, user state |
-| `LysQueryProvider` | GraphQL query wrapper with loading, error handling, permission checks |
-| `LysMutationProvider` | GraphQL mutation wrapper with error handling, permission checks |
-| `LysDialogProvider` | Dialog stack management (open/close/back/update) |
-| `AlertMessageProvider` | Alert message accumulation and console routing |
-| `SignalProvider` | SSE EventSource connection, signal dispatch and subscription |
-| `UrlQueriesProvider` | URL query parameter management with staged/applied state |
-| `WebserviceAccessProvider` | Permission checking via webservice access levels |
-| `FilterLabelsProvider` | Filter label persistence via localStorage |
-| `ErrorBoundaryProvider` | React error boundary with fallback rendering |
-| `ChatbotProvider` | AI chatbot state (messages, conversation, refresh signal) |
-| `LocaleProvider` | Locale and i18n message management |
-| `PageContextProvider` | Page-level context (params, metadata) |
-
-### Hooks: `src/providers/hooks/`
+#### Hooks: `src/providers/hooks/`
 
 | Hook | Provider |
 |------|----------|
@@ -34,7 +25,7 @@ Lys-front (`runid-lys` on npm) is the frontend framework library for the lys eco
 
 Each provider also exports its own hook (e.g., `useLysQuery`, `useLysMutation`, `useChatbot`, `useLocale`, etc.).
 
-### Tools: `src/tools/`
+#### Tools: `src/tools/`
 
 | Tool | Purpose |
 |------|---------|
@@ -45,7 +36,7 @@ Each provider also exports its own hook (e.g., `useLysQuery`, `useLysMutation`, 
 | `routeTools` | Route table generation from app descriptions |
 | `translationTools` | Type-safe translation config generation and `useTranslations` hook |
 
-### Types: `src/types/`
+#### Types: `src/types/`
 
 | Type file | Purpose |
 |-----------|---------|
@@ -55,7 +46,7 @@ Each provider also exports its own hook (e.g., `useLysQuery`, `useLysMutation`, 
 | `descriptionTypes` | Component description types |
 | `relayTypes` | GraphQL error types, Relay network error, AppDescription |
 
-### Other: `src/`
+#### Other: `src/`
 
 | Path | Purpose |
 |------|---------|
@@ -63,7 +54,7 @@ Each provider also exports its own hook (e.g., `useLysQuery`, `useLysMutation`, 
 | `i18n/` | Error and message translations (errors.ts, messages.ts) |
 | `templates/PublicAppTemplate.tsx` | Public (unauthenticated) app template |
 
-## Subpath Exports
+### Subpath exports
 
 ```typescript
 import { ... } from "runid-lys/providers"   // Providers, hooks, contexts, types
@@ -74,7 +65,7 @@ import { ... } from "runid-lys/i18n"        // i18n translations
 import { ... } from "runid-lys/templates"   // App templates
 ```
 
-## Development Commands
+### Development commands
 
 ```bash
 npm run build              # Build library (Vite)
@@ -84,7 +75,7 @@ npm test                   # Run all tests (vitest)
 npm run test:watch         # Run tests in watch mode
 ```
 
-## Testing
+### Testing
 
 - **Framework**: Vitest + @testing-library/react + jsdom
 - **Test location**: Co-located as `*.test.ts` / `*.test.tsx` next to source files
@@ -92,28 +83,28 @@ npm run test:watch         # Run tests in watch mode
 - **Utilities**: `src/test/test-utils.tsx` (mockUser, renderWithProviders)
 - **Current count**: 282 tests across 20 files
 
-## Development Guidelines
+### Development guidelines
 
-### Language and Documentation Standards
+#### Language and documentation standards
 - **Project language**: All code, comments, documentation, and commit messages must be in English
 - **No marketing language**: Avoid superlatives or promotional terms
 - **Technical precision**: Focus on functionality and implementation details
 
-### Code Style Standards
+#### Code style standards
 - **TypeScript strict**: No `any` in production source code (tests may use `any`)
 - **String quotes**: Use double quotes `"` for strings
 - **Naming**: Components use PascalCase with type suffix (e.g., `LysQueryProvider`, `AlertMessageProvider`)
 
-## Git & Commit Workflow
+### Git & commit workflow
 
-### Git Rules
-- **CRITICAL**: Do NOT sign commits — no GPG signatures, no Co-Authored-By lines, no Generated with Claude Code footers
+#### Git rules
+- **CRITICAL**: Do NOT sign commits — no GPG signatures, no Co-Authored-By lines, no agent-generated attribution footers
 - Do NOT add any attribution, signature, or authorship metadata to commit messages
 - Commit messages should contain ONLY the conventional commit format with description
-- **IMPORTANT**: NEVER commit changes unless explicitly asked by the user with "commit" command
+- **IMPORTANT**: NEVER commit changes unless explicitly asked by the user with a "commit" instruction
 - Do NOT proactively stage files or create commits — wait for explicit user instruction
 
-### Commit Process
+#### Commit process
 
 When the user validates code and asks to commit:
 
@@ -143,7 +134,26 @@ feat: add dialog update support for body props
 - Add 4 unit tests for update scenarios
 ```
 
-## Documentation Reference
+### Documentation reference
 
 - **Improvement tracking**: `docs/todos/lys-front-improvements.md`
 - **Migration cost analysis**: `docs/todos/relay-to-apollo-migration-cost.md`
+
+## For agents working on a consuming project
+
+The provider guides are available inside the installed package:
+`node_modules/lys-front/agents/guides/` (requires lys-front ≥ 0.11.0).
+
+| Topic | Guide |
+|-------|-------|
+| Provider catalog and rules | `agents/guides/providers.md` |
+| LysQuery / LysMutation / permissions | `agents/guides/data-and-permissions.md` |
+| Dialog system | `agents/guides/dialog.md` |
+| Translations contract | `agents/guides/i18n.md` |
+| Routing and page configs | `agents/guides/routing.md` |
+| Real-time signals | `agents/guides/signals.md` |
+| Chatbot integration | `agents/guides/chatbot.md` |
+| Multi-tenant client focus | `agents/guides/client-focus.md` |
+
+Project-structure conventions (layers, where files live) belong to the
+consuming project's own AGENTS.md, not here.

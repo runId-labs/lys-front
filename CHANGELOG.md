@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RouteProvider` exposing the active route, the route map and helpers via `useRouteInfo`, wiring page context and chatbot auto-open, and rendering project-supplied private/public templates
 - `useRouteAccess` hook centralizing route permission checks (supports `string` and `string[]` any-of semantics for `mainWebserviceName`)
 - Export `RouteProvider`, `useRouteInfo`, `useRouteAccess`, and related types (`RouteContextValue`, `RouteProviderProps`, `RouteTemplateProps`) from `runid-lys/providers`
+- `agents/guides/` shipped in the npm package: per-topic guides (providers, data & permissions, dialog, i18n, routing, signals, chatbot, client focus) for agents consuming the library, indexed from `AGENTS.md`
 
 ### Changed
 
