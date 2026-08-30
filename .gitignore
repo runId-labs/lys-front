@@ -23,3 +23,5 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
+# Claude Code local shim (imports @AGENTS.md — dev-machine only)
+CLAUDE.md
