@@ -3,7 +3,7 @@ import React, { ComponentType, ReactNode } from "react"
 /**
  * Dialog size options
  */
-export type DialogSize = "sm" | "md" | "lg" | "xl"
+export type DialogSize = "sm" | "md" | "lg" | "xl" | "xxl"
 
 /**
  * Dialog placement options

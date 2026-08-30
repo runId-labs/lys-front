@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-30
+
+### Added
+
+- `DialogSize`: new `"xxl"` value
+
 ## [0.12.0] - 2026-08-27
 
 No functional changes — `0.11.0` was already taken on the npm registry
