@@ -139,6 +139,12 @@ export const errorTranslations = {
         fr: "Trop de requêtes. Veuillez réessayer plus tard."
     },
 
+    // User authentication errors (500)
+    INVITER_NOT_FOUND: {
+        en: "Your account could not be identified. Please sign in again.",
+        fr: "Votre compte n'a pas pu être identifié. Veuillez vous reconnecter."
+    },
+
     // User role errors (403)
     UNAUTHORIZED_ROLE_ASSIGNMENT: {
         en: "You are not authorized to assign this role.",
