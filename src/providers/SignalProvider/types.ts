@@ -16,6 +16,11 @@ export interface Signal {
 export type SignalHandler = (signal: Signal) => void;
 
 /**
+ * Reconnection handler function type
+ */
+export type SignalReconnectHandler = () => void;
+
+/**
  * Return type of useSignalRefresh hook
  */
 export interface SignalRefresh {
@@ -49,4 +54,13 @@ export interface SignalContextValue {
      * Returns an unsubscribe function
      */
     subscribe: (handler: SignalHandler) => () => void;
+
+    /**
+     * Register a handler called each time the connection is re-established after a loss
+     *
+     * Nothing is replayed on reconnection, so a consumer whose state depends on signals
+     * received meanwhile has to refetch here.
+     * Returns an unsubscribe function
+     */
+    subscribeReconnect: (handler: SignalReconnectHandler) => () => void;
 }

@@ -3,13 +3,23 @@ import {render, act, waitFor} from "@testing-library/react";
 import {ConnectedUserContext} from "../ConnectedUserProvider/hooks";
 import {createMockConnectedUserContext, mockUser} from "../../test/test-utils";
 import SignalProvider from "./index";
-import {useSignal, useSignalSubscription, useSignalRefresh} from "./hooks";
+import {useSignal, useSignalSubscription, useSignalRefresh, useSignalReconnect} from "./hooks";
 import {SignalRefresh} from "./types";
+import {
+    MIN_FORCED_RETRY_INTERVAL_MS,
+    RECONNECT_BASE_DELAY_MS,
+    RECONNECT_MAX_DELAY_MS,
+    STALE_CONNECTION_TIMEOUT_MS
+} from "./consts";
 
 /**
  * Mock EventSource
  */
 class MockEventSource {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSED = 2;
+
     static instances: MockEventSource[] = [];
 
     url: string;
@@ -19,11 +29,20 @@ class MockEventSource {
     onerror: ((event: Event) => void) | null = null;
     readyState = 0;
     closed = false;
+    listeners: Record<string, ((event: MessageEvent) => void)[]> = {};
 
     constructor(url: string, options?: {withCredentials?: boolean}) {
         this.url = url;
         this.withCredentials = options?.withCredentials ?? false;
         MockEventSource.instances.push(this);
+    }
+
+    addEventListener(type: string, listener: (event: MessageEvent) => void) {
+        (this.listeners[type] ??= []).push(listener);
+    }
+
+    removeEventListener(type: string, listener: (event: MessageEvent) => void) {
+        this.listeners[type] = (this.listeners[type] ?? []).filter((l) => l !== listener);
     }
 
     close() {
@@ -40,8 +59,24 @@ class MockEventSource {
         this.onmessage?.(new MessageEvent("message", {data}));
     }
 
-    simulateError() {
+    simulateHeartbeat() {
+        this.listeners["heartbeat"]?.forEach((listener) => listener(new MessageEvent("heartbeat", {data: ""})));
+    }
+
+    /**
+     * Simulate an error, CLOSED by default (a non-200 answer, which the native
+     * reconnection does not retry)
+     */
+    simulateError(readyState: number = MockEventSource.CLOSED) {
+        this.readyState = readyState;
         this.onerror?.(new Event("error"));
+    }
+
+    /**
+     * Last created instance, i.e. the connection currently in use
+     */
+    static last(): MockEventSource {
+        return MockEventSource.instances[MockEventSource.instances.length - 1];
     }
 }
 
@@ -62,8 +97,11 @@ const SubscriptionConsumer = ({handler}: {handler: (signal: any) => void}) => {
     return <div>Subscription consumer</div>;
 };
 
-function renderSignalProvider(userOverride?: typeof mockUser | undefined) {
-    const connCtx = createMockConnectedUserContext({user: userOverride});
+function renderSignalProvider(
+    userOverride?: typeof mockUser | undefined,
+    contextOverrides: Parameters<typeof createMockConnectedUserContext>[0] = {}
+) {
+    const connCtx = createMockConnectedUserContext({user: userOverride, ...contextOverrides});
     let signalValue: ReturnType<typeof useSignal> | null = null;
 
     const result = render(
@@ -375,6 +413,278 @@ describe("SignalProvider", () => {
 
             expect(getRefresh().version).toBe(1);
             expect(getRefresh().params).toEqual({from: "B"});
+        });
+    });
+
+    describe("reconnection", () => {
+        /**
+         * Test component counting reconnections
+         */
+        const ReconnectConsumer = ({onReconnect}: {onReconnect: () => void}) => {
+            useSignalReconnect(onReconnect, [onReconnect]);
+            return <div>Reconnect consumer</div>;
+        };
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+            // Full jitter draws in [0, capped]: pin the draw to make delays deterministic
+            vi.spyOn(Math, "random").mockReturnValue(0.5);
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        });
+
+        it("reconnects with a backoff after an opened connection drops", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+
+            // Scheduled, not immediate
+            expect(MockEventSource.instances).toHaveLength(1);
+
+            act(() => {
+                vi.advanceTimersByTime(500);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(2);
+        });
+
+        it("grows the delay between consecutive failed attempts", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+
+            // First retry after ~500ms (0.5 * 1000)
+            act(() => {
+                vi.advanceTimersByTime(499);
+            });
+            expect(MockEventSource.instances).toHaveLength(1);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(MockEventSource.instances).toHaveLength(2);
+
+            // That attempt fails without opening: the delay grows
+            act(() => {
+                MockEventSource.last().simulateError();
+                vi.advanceTimersByTime(999);
+            });
+            expect(MockEventSource.instances).toHaveLength(2);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(MockEventSource.instances).toHaveLength(3);
+        });
+
+        it("caps the delay whatever the number of failures", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+
+            for (let attempt = 0; attempt < 12; attempt++) {
+                act(() => {
+                    vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS);
+                    MockEventSource.last().simulateError();
+                });
+            }
+
+            // 0.5 * 60000 capped to 0.5 * RECONNECT_MAX_DELAY_MS
+            act(() => {
+                vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS / 2);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(14);
+        });
+
+        it("does not schedule a reconnection while the native retry is running", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError(MockEventSource.CONNECTING);
+            });
+
+            act(() => {
+                vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(1);
+        });
+
+        it("opens through the connected user queue, so an expired token is refreshed first", () => {
+            const queued: (() => void)[] = [];
+            const push = vi.fn((webservice: () => void) => {queued.push(webservice);});
+            renderSignalProvider(mockUser, {push});
+
+            // Queued behind the refresh: nothing is opened against a certain 401
+            expect(push).toHaveBeenCalledTimes(1);
+            expect(MockEventSource.instances).toHaveLength(0);
+
+            act(() => {
+                queued.forEach((webservice) => webservice());
+            });
+
+            expect(MockEventSource.instances).toHaveLength(1);
+        });
+
+        it("does not open a stream for a user who logged out while the attempt was queued", () => {
+            const queued: (() => void)[] = [];
+            const push = vi.fn((webservice: () => void) => {queued.push(webservice);});
+            const {result} = renderSignalProvider(mockUser, {push});
+
+            result.unmount();
+
+            act(() => {
+                queued.forEach((webservice) => webservice());
+            });
+
+            expect(MockEventSource.instances).toHaveLength(0);
+        });
+
+        it("notifies reconnect handlers when the connection reopens, not on the first open", () => {
+            const onReconnect = vi.fn();
+            const connCtx = createMockConnectedUserContext();
+
+            render(
+                <ConnectedUserContext.Provider value={connCtx}>
+                    <SignalProvider>
+                        <ReconnectConsumer onReconnect={onReconnect}/>
+                    </SignalProvider>
+                </ConnectedUserContext.Provider>
+            );
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+            });
+            expect(onReconnect).not.toHaveBeenCalled();
+
+            act(() => {
+                MockEventSource.last().simulateError();
+                vi.advanceTimersByTime(500);
+            });
+            act(() => {
+                MockEventSource.last().simulateOpen();
+            });
+
+            expect(onReconnect).toHaveBeenCalledTimes(1);
+        });
+
+        it("retries as soon as the network comes back, without waiting out a long backoff", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+
+            // Fail enough times for the backoff to reach its cap
+            for (let attempt = 0; attempt < 8; attempt++) {
+                act(() => {
+                    vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS);
+                    MockEventSource.last().simulateError();
+                });
+            }
+
+            // Past the spacing window, still far from the pending attempt
+            act(() => {
+                vi.advanceTimersByTime(MIN_FORCED_RETRY_INTERVAL_MS + 1);
+            });
+            const beforeWakeUp = MockEventSource.instances.length;
+
+            act(() => {
+                window.dispatchEvent(new Event("online"));
+            });
+
+            expect(MockEventSource.instances).toHaveLength(beforeWakeUp + 1);
+        });
+
+        it("spaces wake-up retries instead of firing on every event", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+            expect(MockEventSource.instances).toHaveLength(1);
+
+            // A burst of tab switches right after the drop
+            act(() => {
+                window.dispatchEvent(new Event("online"));
+                document.dispatchEvent(new Event("visibilitychange"));
+                window.dispatchEvent(new Event("online"));
+            });
+
+            expect(MockEventSource.instances).toHaveLength(1);
+
+            // One attempt once the window has elapsed (plus its jitter)
+            act(() => {
+                vi.advanceTimersByTime(MIN_FORCED_RETRY_INTERVAL_MS + RECONNECT_BASE_DELAY_MS);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(2);
+        });
+
+        it("reopens a connection that stopped carrying heartbeats", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateHeartbeat();
+            });
+
+            act(() => {
+                vi.advanceTimersByTime(STALE_CONNECTION_TIMEOUT_MS - 1);
+            });
+            expect(MockEventSource.instances).toHaveLength(1);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(MockEventSource.instances).toHaveLength(2);
+        });
+
+        it("does not arm the watchdog on a server that sends no heartbeat", () => {
+            renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+            });
+
+            act(() => {
+                vi.advanceTimersByTime(STALE_CONNECTION_TIMEOUT_MS * 2);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(1);
+        });
+
+        it("cancels a pending reconnection on unmount", () => {
+            const {result} = renderSignalProvider(mockUser);
+
+            act(() => {
+                MockEventSource.last().simulateOpen();
+                MockEventSource.last().simulateError();
+            });
+
+            result.unmount();
+
+            act(() => {
+                vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS);
+            });
+
+            expect(MockEventSource.instances).toHaveLength(1);
         });
     });
 });

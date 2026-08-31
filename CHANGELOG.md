@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-08-31
+
+### Added
+
+- `useSignalReconnect` hook: runs a handler each time the SSE connection is re-established after a loss
+- `SignalProvider` application-level reconnection loop over `EventSource`: exponential backoff with jitter after a drop, one token-refresh attempt on a connection that never opened, a heartbeat watchdog that reopens stalled connections, and throttled immediate retries on network/focus recovery
+
 ## [0.14.0] - 2026-08-31
 
 ### Added

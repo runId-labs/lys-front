@@ -19,6 +19,28 @@ useSignalSubscription((signal) => {
 
 Signal shape: `{signal: "SCREAMING_SNAKE_NAME", params: {…plain data…}}`.
 
+## Reconnection
+
+`EventSource` only retries transport drops on its own; a non-200 response
+(expired token, API rollout) closes it for good. `SignalProvider` layers a
+reconnection loop on top: a drop after a successful open retries with a
+capped, jittered exponential backoff; a drop before ever opening gets one
+token-refresh attempt (via the queue already owned by `ConnectedUserProvider`)
+before retrying; a connection that stops carrying heartbeats is torn down and
+reopened; regaining network or focus retries right away instead of waiting
+out the backoff, throttled so repeated wake-up events don't burst the API.
+
+`isConnected` and `error` (from `useSignal`) reflect this loop, not just the
+raw `EventSource` state.
+
+Nothing missed during an outage is replayed — no event id, no server-side
+history. Consumers whose state must be accurate after a reconnect use
+`useSignalReconnect` to refetch:
+
+```tsx
+useSignalReconnect(refreshUnreadCount, [refreshUnreadCount]);
+```
+
 ## RULES
 
 - **R1 — Signal names are a contract with the backend** — exact match,
@@ -32,3 +54,6 @@ Signal shape: `{signal: "SCREAMING_SNAKE_NAME", params: {…plain data…}}`.
   the `NEW_NOTIFICATION` signal with a `type_id` and are rendered by the
   application's notification components; subscribe to them only to refresh
   badges/lists.
+- **R5 — A reconnect replays nothing**: state built from signals is stale
+  once the connection drops, even briefly. Use `useSignalReconnect` to
+  refetch it rather than trusting `isConnected` to flip back silently.

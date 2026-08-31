@@ -1,5 +1,5 @@
 import {createContext, useContext, useEffect, useState} from "react";
-import {SignalContextValue, SignalHandler, SignalRefresh} from "./types";
+import {SignalContextValue, SignalHandler, SignalReconnectHandler, SignalRefresh} from "./types";
 
 /**
  * Signal context with default no-op values
@@ -9,6 +9,10 @@ export const SignalContext = createContext<SignalContextValue>({
     error: null,
     subscribe: () => {
         console.warn("SignalProvider not initialized: subscribe");
+        return () => {};
+    },
+    subscribeReconnect: () => {
+        console.warn("SignalProvider not initialized: subscribeReconnect");
         return () => {};
     }
 });
@@ -85,4 +89,32 @@ export function useSignalRefresh(...signalKeys: string[]): SignalRefresh {
     }, signalKeys);
 
     return {version, params};
+}
+
+/**
+ * Hook to run a handler each time the signal connection is re-established after a loss
+ *
+ * A reconnection replays nothing: no event id is emitted and the server keeps no history.
+ * Any state built from signals is therefore stale once the connection comes back, and has
+ * to be refetched here — otherwise the link is restored but the screen stays wrong.
+ *
+ * @param handler - Function called on reconnection
+ * @param deps - Dependencies array for the handler (like useEffect)
+ *
+ * @example
+ * ```tsx
+ * useSignalReconnect(refreshUnreadCount, [refreshUnreadCount]);
+ * ```
+ */
+export function useSignalReconnect(
+    handler: SignalReconnectHandler,
+    deps: React.DependencyList = []
+): void {
+    const {subscribeReconnect} = useSignal();
+
+    useEffect(() => {
+        const unsubscribe = subscribeReconnect(handler);
+        return unsubscribe;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subscribeReconnect, ...deps]);
 }
