@@ -3,3 +3,4 @@ export type { TranslationType } from "./i18nTypes";
 export type { PageProps, PageTemplate } from "./pageTypes";
 export type { RouteInterface } from "./routeTypes";
 export type { ComponentDescriptionType, ChatbotBehaviourType, PageDescriptionType } from "./descriptionTypes";
+export type { GraphQLError, RelayNetworkError, RelayPageInfo, PaginationChangeEvent } from "./relayTypes";

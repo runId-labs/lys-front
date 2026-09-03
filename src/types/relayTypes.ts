@@ -50,3 +50,38 @@ export interface AppDescription {
     };
 }
 
+
+
+/**
+ * PageInfo of a Relay connection, as the lys backend returns it.
+ *
+ * `totalCount` is a lys addition to the Relay spec: a pager needs to know how many pages
+ * there are, which cursors alone cannot say.
+ */
+export interface RelayPageInfo {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor?: string | null;
+    endCursor?: string | null;
+    totalCount?: number | null;
+}
+
+/**
+ * A move to another page, as a pager reports it.
+ *
+ * Forward and backward paging are exclusive: a forward move carries `first`/`after`, a
+ * backward one `last`/`before`, and the unused pair is null rather than absent.
+ */
+export interface PaginationChangeEvent {
+    /** Page size for forward pagination (with `after`). Null on a backward page. */
+    first?: number | null;
+
+    /** Page size for backward pagination (with `before`). Null on a forward page. */
+    last?: number | null;
+
+    /** Cursor for the next page (forward pagination). */
+    after?: string | null;
+
+    /** Cursor for the previous page (backward pagination). */
+    before?: string | null;
+}
