@@ -204,6 +204,64 @@ export const errorTranslations = {
         en: "License quota exceeded. Please upgrade your subscription.",
         fr: "Quota de licences dépassé. Veuillez mettre à niveau votre abonnement."
     },
+    USER_ALREADY_LICENSED: {
+        en: "This user already holds a license on this subscription.",
+        fr: "Cet utilisateur détient déjà une licence sur cet abonnement."
+    },
+    USER_NOT_LICENSED: {
+        en: "This user holds no license on this subscription.",
+        fr: "Cet utilisateur ne détient aucune licence sur cet abonnement."
+    },
+
+    // Subscription state errors
+    NO_ACTIVE_SUBSCRIPTION: {
+        en: "This client has no active subscription.",
+        fr: "Ce client n'a aucun abonnement actif."
+    },
+    SUBSCRIPTION_EXPIRED: {
+        en: "This subscription has expired.",
+        fr: "Cet abonnement a expiré."
+    },
+    SUBSCRIPTION_INACTIVE: {
+        en: "This subscription is not active.",
+        fr: "Cet abonnement n'est pas actif."
+    },
+    SUBSCRIPTION_ALREADY_EXISTS: {
+        en: "This client already has a subscription.",
+        fr: "Ce client a déjà un abonnement."
+    },
+
+    // Rule errors
+    QUOTA_EXCEEDED: {
+        en: "The quota granted by your plan is reached.",
+        fr: "Le quota accordé par votre offre est atteint."
+    },
+    FEATURE_NOT_AVAILABLE: {
+        en: "Your plan does not include this feature.",
+        fr: "Votre offre n'inclut pas cette fonctionnalité."
+    },
+    DOWNGRADE_RULE_NOT_FOUND: {
+        en: "This plan change cannot be applied: a quota is missing from the target version.",
+        fr: "Ce changement d'offre ne peut pas être appliqué : un quota manque sur la version visée."
+    },
+
+    // Discount errors
+    DISCOUNT_NOT_FOUND: {
+        en: "This discount does not exist.",
+        fr: "Cette remise n'existe pas."
+    },
+    DISCOUNT_NOT_AVAILABLE: {
+        en: "This discount is no longer offered.",
+        fr: "Cette remise n'est plus proposée."
+    },
+    DISCOUNT_ALREADY_GRANTED: {
+        en: "This subscription already carries a discount. Remove it before granting another.",
+        fr: "Cet abonnement porte déjà une remise. Retirez-la avant d'en accorder une autre."
+    },
+    DISCOUNT_WITHOUT_PRICE: {
+        en: "A discount cannot be granted on a subscription that owes nothing.",
+        fr: "Une remise ne peut pas être accordée sur un abonnement qui ne doit rien."
+    },
 
     // Billing mode errors
     PROVIDER_SUBSCRIPTION_ACTIVE: {

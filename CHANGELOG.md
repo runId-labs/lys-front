@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-18
+
+### Added
+
+- Error translations for license, subscription, rule and discount errors: `USER_ALREADY_LICENSED`, `USER_NOT_LICENSED`, `NO_ACTIVE_SUBSCRIPTION`, `SUBSCRIPTION_EXPIRED`, `SUBSCRIPTION_INACTIVE`, `SUBSCRIPTION_ALREADY_EXISTS`, `QUOTA_EXCEEDED`, `FEATURE_NOT_AVAILABLE`, `DOWNGRADE_RULE_NOT_FOUND`, `DISCOUNT_NOT_FOUND`, `DISCOUNT_NOT_AVAILABLE`, `DISCOUNT_ALREADY_GRANTED`, `DISCOUNT_WITHOUT_PRICE`
+
 ## [0.16.0] - 2026-09-03
 
 ### Added
