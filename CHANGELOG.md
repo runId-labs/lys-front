@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-27
+
+### Added
+
+- `ChatbotParamSpec` / `ChatbotParamType` types and `ChatbotBehaviourType.params`: a page declares the URL params the chatbot may read, by type (`global_id`, `uuid`, `int`, `bool`, `date`, `enum`, `text`). The spec is discriminated on `type`, so `enum` requires `values` and `text` requires `maxLength` — the declarations the lys validator would otherwise drop at runtime
+- `scripts/generate-routes-manifest.js` emits the declared params at the route level of the manifest, in the snake_case keys the validator reads (`max_length`, `max_items`), and warns at build time about a declaration that accepts nothing
+- `ChatbotBehaviourType.specialTools`: the special tools a page opts into, extracted by the generator into the manifest's `special_tools`
+- `bin: lys-front-generate-routes` — the manifest generator ships as a package bin: a consumer runs it with `"generate:routes": "lys-front-generate-routes"` and no local copy. It generates for the working directory (an explicit root can be passed), scans the consumer's providers AND the framework's own for global webservices, and carries the `specialTools` extraction the copies it replaces silently truncated to the array's last item (`propose_memory` was dropped from every page)
+- The published package ships the providers' `__generated__` GraphQL artifacts, so the bin finds the framework's global webservices (`login`, `logout`, `connectedUser`...) from an installed package and not only from a checkout; it warns instead of emitting an incomplete manifest when it cannot
+- 14 tests covering the manifest extraction (brace matching, param spec translation, chatbot behaviour)
+
+### Fixed
+
+- The generator reports a missing pages directory with a usage message instead of an unhandled `ENOENT`
+
 ## [0.17.0] - 2026-09-18
 
 ### Added

@@ -7,16 +7,25 @@
  * Output: public/routes-manifest.json
  */
 
-import {readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync} from "fs";
+import {readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, realpathSync} from "fs";
 import {join, dirname, resolve, basename} from "path";
 import {fileURLToPath} from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const ROOT_DIR = join(__dirname, "..");
+
+// The consumer project to generate for. Defaults to the working directory — the
+// bin is run from the consumer's package root by npm — so no copy of this script
+// is needed in the consumer repo; pass an explicit root to run it elsewhere.
+const ROOT_DIR = process.argv[2] ? resolve(process.argv[2]) : process.cwd();
 const SRC_DIR = join(ROOT_DIR, "src");
 const PAGES_DIR = join(ROOT_DIR, "src/components/pages");
 const PROVIDERS_DIR = join(ROOT_DIR, "src/components/providers");
+// The framework's own providers — resolved from THIS script's location, so it
+// works from the checkout and from the installed package alike. Their global
+// webservices (login, logout, connectedUser...) belong to the manifest too, so
+// package.json ships the `__generated__` GraphQL artifacts this reads.
+const LYS_FRONT_PROVIDERS_DIR = join(__dirname, "..", "src", "providers");
 const OUTPUT_FILE = join(ROOT_DIR, "public/routes-manifest.json");
 
 // Cache for webservices extraction
@@ -53,25 +62,117 @@ function extractExtraWebservices(content) {
 }
 
 /**
- * Extract chatbotBehaviour object from config content
+ * Extract a brace-delimited block, braces included, starting at an opening brace
  */
-function extractChatbotBehaviour(content) {
-    // Match chatbotBehaviour: { ... }
-    const behaviourMatch = content.match(/chatbotBehaviour:\s*\{/);
-    if (!behaviourMatch) return null;
+function extractBraceBlock(content, openIndex) {
+    if (content[openIndex] !== "{") return null;
 
-    const startIndex = behaviourMatch.index + behaviourMatch[0].length - 1;
     let depth = 1;
-    let endIndex = startIndex + 1;
+    let endIndex = openIndex + 1;
 
-    // Find matching closing brace
     while (depth > 0 && endIndex < content.length) {
         if (content[endIndex] === "{") depth++;
         if (content[endIndex] === "}") depth--;
         endIndex++;
     }
 
-    const behaviourContent = content.slice(startIndex, endIndex);
+    return depth === 0 ? content.slice(openIndex, endIndex) : null;
+}
+
+/**
+ * Parse one declared param spec into its manifest shape
+ *
+ * The page description writes camelCase (`maxLength`, `maxItems`); the validator
+ * reads snake_case (`max_length`, `max_items`), so the keys are translated here
+ * like `contextTools` is.
+ */
+function parseParamSpec(specBlock) {
+    const type = extractStringValue(specBlock, "type");
+    if (!type) return null;
+
+    const spec = {type};
+
+    const valuesMatch = specBlock.match(/values:\s*\[([^\]]*)\]/);
+    if (valuesMatch) {
+        const values = [];
+        const stringRegex = /["']([^"']*)["']/g;
+        let stringMatch;
+        while ((stringMatch = stringRegex.exec(valuesMatch[1])) !== null) {
+            values.push(stringMatch[1]);
+        }
+        if (values.length > 0) spec.values = values;
+    }
+
+    const maxLengthMatch = specBlock.match(/maxLength:\s*(\d+)/);
+    if (maxLengthMatch) spec.max_length = parseInt(maxLengthMatch[1], 10);
+
+    if (/multiple:\s*true/.test(specBlock)) spec.multiple = true;
+
+    const maxItemsMatch = specBlock.match(/maxItems:\s*(\d+)/);
+    if (maxItemsMatch) spec.max_items = parseInt(maxItemsMatch[1], 10);
+
+    return spec;
+}
+
+/**
+ * Extract the declared params from a chatbotBehaviour block
+ *
+ * Emitted at the ROUTE level (not under chatbot_behaviour) because that is where
+ * the validator reads them. A page that declares none exposes none: the params
+ * the client sends are then all dropped server-side.
+ */
+function extractParams(behaviourContent) {
+    const paramsMatch = behaviourContent.match(/params:\s*\{/);
+    if (!paramsMatch) return null;
+
+    const paramsBlock = extractBraceBlock(behaviourContent, paramsMatch.index + paramsMatch[0].length - 1);
+    if (!paramsBlock) return null;
+
+    const params = {};
+    const keyRegex = /["']?([A-Za-z0-9_]+)["']?:\s*\{/g;
+    let keyMatch;
+
+    while ((keyMatch = keyRegex.exec(paramsBlock)) !== null) {
+        const specBlock = extractBraceBlock(paramsBlock, keyRegex.lastIndex - 1);
+        if (!specBlock) continue;
+
+        // Skip past the spec so a nested key is never read as a param name
+        keyRegex.lastIndex = keyRegex.lastIndex - 1 + specBlock.length;
+
+        const spec = parseParamSpec(specBlock);
+        if (spec) params[keyMatch[1]] = spec;
+    }
+
+    return Object.keys(params).length > 0 ? params : null;
+}
+
+/**
+ * Warn about declarations the validator will drop at runtime
+ */
+function warnUnusableParams(pageName, params) {
+    for (const [key, spec] of Object.entries(params)) {
+        if (spec.type === "enum" && !spec.values) {
+            console.warn(`  ! ${pageName}: param "${key}" declares enum without values, it will accept nothing`);
+        }
+        if (spec.type === "text" && !spec.max_length) {
+            console.warn(`  ! ${pageName}: param "${key}" declares text without maxLength, it will accept nothing`);
+        }
+    }
+}
+
+/**
+ * Extract chatbotBehaviour object from config content
+ *
+ * Returns the manifest `chatbot_behaviour` object and, separately, the declared
+ * params, which the manifest carries at the route level.
+ */
+function extractChatbotBehaviour(content) {
+    // Match chatbotBehaviour: { ... }
+    const behaviourMatch = content.match(/chatbotBehaviour:\s*\{/);
+    if (!behaviourMatch) return {behaviour: null, params: null};
+
+    const behaviourContent = extractBraceBlock(content, behaviourMatch.index + behaviourMatch[0].length - 1);
+    if (!behaviourContent) return {behaviour: null, params: null};
 
     // Extract prompt - either inline template literal or variable reference
     let prompt = null;
@@ -107,12 +208,31 @@ function extractChatbotBehaviour(content) {
         }
     }
 
-    if (!prompt && !contextTools) return null;
+    // Extract specialTools array (e.g. ["propose_memory", "propose_action"]) —
+    // the special tools a page opts into. The character class must escape the
+    // `]` ([^\]]): an unescaped one reads as "any character" in JS and silently
+    // truncated the array to its last item.
+    let specialTools = null;
+    const specialToolsMatch = behaviourContent.match(/specialTools:\s*\[([^\]]*)\]/);
+    if (specialToolsMatch) {
+        specialTools = [];
+        const arrayContent = specialToolsMatch[1];
+        const stringRegex = /["']([^"']+)["']/g;
+        let stringMatch;
+        while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
+            specialTools.push(stringMatch[1]);
+        }
+    }
 
-    const result = {};
-    if (prompt) result.prompt = prompt;
-    if (contextTools) result.context_tools = contextTools;
-    return result;
+    const params = extractParams(behaviourContent);
+
+    if (!prompt && !contextTools && !specialTools) return {behaviour: null, params};
+
+    const behaviour = {};
+    if (prompt) behaviour.prompt = prompt;
+    if (contextTools) behaviour.context_tools = contextTools;
+    if (specialTools) behaviour.special_tools = specialTools;
+    return {behaviour, params};
 }
 
 /**
@@ -135,10 +255,12 @@ function parsePageConfig(pageName) {
             return null;
         }
 
-        const chatbotBehaviour = extractChatbotBehaviour(content);
+        const {behaviour: chatbotBehaviour, params} = extractChatbotBehaviour(content);
         const extraWebservices = extractExtraWebservices(content);
 
-        return {path, description, type, chatbotBehaviour, extraWebservices};
+        if (params) warnUnusableParams(pageName, params);
+
+        return {path, description, type, chatbotBehaviour, params, extraWebservices};
     } catch (error) {
         console.error(`Error parsing ${configPath}:`, error.message);
         return null;
@@ -343,27 +465,40 @@ function getPageWebservices(pageName) {
  */
 function getGlobalWebservices() {
     const webservices = [];
+    // The consumer's providers AND the framework's own: the global webservices
+    // (login, logout, connectedUser...) live in lys-front.
+    const providersDirs = [PROVIDERS_DIR, LYS_FRONT_PROVIDERS_DIR];
 
-    if (!existsSync(PROVIDERS_DIR)) {
-        return webservices;
-    }
+    for (const dir of providersDirs) {
+        if (!existsSync(dir)) {
+            // A missing framework directory would silently drop the global
+            // webservices from the manifest, so it is reported, not skipped.
+            if (dir === LYS_FRONT_PROVIDERS_DIR) {
+                console.warn(
+                    `  ! lys-front providers not found at ${dir}: the framework's global ` +
+                    "webservices (login, logout, connectedUser...) are missing from the manifest"
+                );
+            }
+            continue;
+        }
 
-    const providerDirs = readdirSync(PROVIDERS_DIR, {withFileTypes: true})
-        .filter(d => d.isDirectory())
-        .map(d => d.name);
+        const providerDirs = readdirSync(dir, {withFileTypes: true})
+            .filter(d => d.isDirectory())
+            .map(d => d.name);
 
-    for (const providerName of providerDirs) {
-        const generatedDir = join(PROVIDERS_DIR, providerName, "__generated__");
+        for (const providerName of providerDirs) {
+            const generatedDir = join(dir, providerName, "__generated__");
 
-        if (!existsSync(generatedDir)) continue;
+            if (!existsSync(generatedDir)) continue;
 
-        const files = readdirSync(generatedDir).filter(f => f.endsWith(".graphql.ts"));
+            const files = readdirSync(generatedDir).filter(f => f.endsWith(".graphql.ts"));
 
-        for (const file of files) {
-            if (file.includes("Fragment_")) continue;
-            const result = parseGeneratedFile(join(generatedDir, file));
-            if (result) {
-                webservices.push(result.webservice);
+            for (const file of files) {
+                if (file.includes("Fragment_")) continue;
+                const result = parseGeneratedFile(join(generatedDir, file));
+                if (result) {
+                    webservices.push(result.webservice);
+                }
             }
         }
     }
@@ -380,6 +515,15 @@ function getGlobalWebservices() {
  */
 function main() {
     console.log("Generating routes manifest...");
+
+    if (!existsSync(PAGES_DIR)) {
+        console.error(
+            `No pages directory at ${PAGES_DIR}.\n` +
+            "Run this from the project root, or pass it as an argument: " +
+            "lys-front-generate-routes /path/to/project"
+        );
+        process.exit(1);
+    }
 
     const pageDirs = readdirSync(PAGES_DIR, {withFileTypes: true})
         .filter(d => d.isDirectory())
@@ -413,6 +557,10 @@ function main() {
             route.chatbot_behaviour = config.chatbotBehaviour;
         }
 
+        if (config.params) {
+            route.params = config.params;
+        }
+
         routes.push(route);
     }
 
@@ -438,10 +586,31 @@ function main() {
 
     // Summary
     const totalRouteWebservices = routes.reduce((sum, r) => sum + r.webservices.length, 0);
+    const totalParams = routes.reduce((sum, r) => sum + Object.keys(r.params || {}).length, 0);
     console.log(`Generated ${OUTPUT_FILE}`);
     console.log(`  - ${routes.length} routes`);
     console.log(`  - ${totalRouteWebservices} route webservices`);
     console.log(`  - ${globalWebservices.length} global webservices`);
+    console.log(`  - ${totalParams} declared page params`);
 }
 
-main();
+/**
+ * Run only as a program, so the extraction above can be imported and tested.
+ *
+ * `argv[1]` is the symlink npm installs in `node_modules/.bin`, while
+ * `import.meta.url` is already resolved — hence the realpath comparison.
+ */
+function isRunAsProgram() {
+    if (!process.argv[1]) return false;
+    try {
+        return realpathSync(process.argv[1]) === __filename;
+    } catch {
+        return false;
+    }
+}
+
+if (isRunAsProgram()) {
+    main();
+}
+
+export {extractBraceBlock, parseParamSpec, extractParams, extractChatbotBehaviour};

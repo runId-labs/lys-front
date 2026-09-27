@@ -19,6 +19,52 @@ it to scope answers to the current page. `RouteProvider` feeds it; `route`
 options `autoOpenChatbot` / `showChatbotWelcome` control chatbot behaviour on
 arrival.
 
+### Declared params
+
+`params` is the only part of the prompt the CLIENT controls, so the backend
+renders a param to the model only when the page DECLARES it, by type, in the
+routes manifest. Anything else is dropped and logged (`[PageParams]`). A page
+that declares nothing exposes nothing: the chatbot sees no screen state at all.
+
+A page declares its params in `chatbotBehaviour.params`
+(`Record<string, ChatbotParamSpec>`), and the manifest generator lifts them to
+the route level in the keys the validator reads:
+
+```typescript
+chatbotBehaviour: {
+    prompt: chatbotPrompt,
+    params: {
+        orderId: {type: "global_id"},
+        status: {type: "enum", values: ["DRAFT", "PAID"], multiple: true},
+        search: {type: "text", maxLength: 120},
+    },
+}
+```
+
+Types: `global_id`, `uuid`, `int`, `bool`, `date`, `enum` (needs `values`),
+`text` (needs `maxLength`). `multiple` makes the param a list, capped by
+`maxItems` (50 by default), and one invalid item drops the whole list. `enum`
+without `values` and `text` without `maxLength` accept nothing — the omission
+fails closed, and the generator warns at build time.
+
+`chatbotBehaviour.specialTools` is declared the same way and gated the same
+way: a special tool (`propose_memory`, `propose_action`...) the page does not
+list is not offered to the model on that page.
+
+### Generating the manifest
+
+The generator ships as a bin, so a consuming project needs no copy of it:
+
+```json
+"scripts": {"generate:routes": "lys-front-generate-routes"}
+```
+
+It reads `src/components/pages/*/config.ts`, writes
+`public/routes-manifest.json`, and takes an explicit project root as its only
+argument. The manifest is the SERVER's copy of the declaration — regenerate it
+and deploy it whenever a page's params, prompt or special tools change, or the
+backend keeps validating against the previous version.
+
 ## FrontendAction (backend-driven UI actions)
 
 The streaming chat response may carry `frontendActions`: typed actions the
@@ -39,3 +85,8 @@ app's chat component.
   mapped to human labels by the app's chat component; never surface raw tool
   names.
 - **R4 — Never render `frontendActions` verbatim** — interpret them.
+- **R5 — Declare a param before reading it, and prefer a closed type**: an id,
+  an enum, a date or a flag cannot carry an instruction into the prompt;
+  `text` can, so declare it only for a field that legitimately holds prose (a
+  search box) and cap it to what the page produces. Document every declared
+  key in the prompt — its meaning, and the default when it is absent.

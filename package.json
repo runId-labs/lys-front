@@ -1,6 +1,6 @@
 {
   "name": "runid-lys",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Frontend framework library for the lys ecosystem — providers, hooks, tools, and types for React applications",
   "keywords": [
     "react",
@@ -28,9 +28,13 @@
     "NOTICE",
     "README.md",
     "CHANGELOG.md",
-    "agents"
+    "agents",
+    "src/providers/**/__generated__/*.graphql.ts"
   ],
   "type": "module",
+  "bin": {
+    "lys-front-generate-routes": "scripts/generate-routes-manifest.js"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
