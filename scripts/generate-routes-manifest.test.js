@@ -3,7 +3,9 @@ import {
     extractBraceBlock,
     parseParamSpec,
     extractParams,
-    extractChatbotBehaviour
+    extractChatbotBehaviour,
+    extractStringArray,
+    extractRootFields
 } from "./generate-routes-manifest.js";
 
 const configWithParams = `
@@ -113,5 +115,80 @@ describe("extractChatbotBehaviour", () => {
 
     it("returns nothing when the page has no chatbotBehaviour", () => {
         expect(extractChatbotBehaviour("const x = 1;")).toEqual({behaviour: null, params: null});
+    });
+});
+
+describe("extractStringArray", () => {
+    it("reads the declared global webservices", () => {
+        expect(extractStringArray(
+            'export const chatbotConfig = {globalWebservices: ["allDecisions"]};',
+            "globalWebservices"
+        )).toEqual(["allDecisions"]);
+    });
+
+    it("reads every entry, not just the last one", () => {
+        expect(extractStringArray(
+            'globalWebservices: ["allDecisions", "allContextEvents"]',
+            "globalWebservices"
+        )).toEqual(["allDecisions", "allContextEvents"]);
+    });
+
+    it("keeps extraWebservices reading what the pages declare", () => {
+        expect(extractStringArray(
+            'extraWebservices: ["allUsers", "createUser"]',
+            "extraWebservices"
+        )).toEqual(["allUsers", "createUser"]);
+    });
+
+    it("returns null when the property is absent, so a present config file is reported", () => {
+        expect(extractStringArray("export const chatbotConfig = {};", "globalWebservices")).toBeNull();
+    });
+});
+
+describe("extractRootFields", () => {
+    it("reads every root field of a multi-root document, not just the first", () => {
+        const text = "query GetDecisionQuery($id: ID!, $clientId: ID) { decision(id: $id) { id title } allCompanies(clientId: $clientId) { edges { node { id } } } allActions(decisionId: $id, first: 50) { edges { node { id } } } }";
+        expect(extractRootFields(text)).toEqual(["decision", "allCompanies", "allActions"]);
+    });
+
+    it("never mistakes an argument or a subfield for a root", () => {
+        const text = "query X($a: Int) { thing(arg: $a, other: \"v { brace }\") { subfield { deep } } }";
+        expect(extractRootFields(text)).toEqual(["thing"]);
+    });
+
+    it("handles a mutation and an aliased root", () => {
+        const text = "mutation M($i: MyInput!) { createAction(inputs: $i) { id } renamed: otherThing { id } }";
+        expect(extractRootFields(text)).toEqual(["createAction", "otherThing"]);
+    });
+
+    it("reads a scalar root, alone or between subselection roots", () => {
+        expect(extractRootFields("mutation M { ping }")).toEqual(["ping"]);
+        expect(extractRootFields("mutation M { ping logout }")).toEqual(["ping", "logout"]);
+        expect(extractRootFields("query X { thing { id } ping }")).toEqual(["thing", "ping"]);
+    });
+
+    it("ignores braces inside a string argument instead of losing the document", () => {
+        const text = 'query X { thing(s: "a { b") { id } allX { id } }';
+        expect(extractRootFields(text)).toEqual(["thing", "allX"]);
+    });
+
+    it("keeps the field a root directive is attached to, not the directive", () => {
+        const text = "query X($s: Boolean!) { thing @include(if: $s) { id } allX { id } }";
+        expect(extractRootFields(text)).toEqual(["thing", "allX"]);
+    });
+
+    it("reaches no webservice through a fragment spread or __typename", () => {
+        expect(extractRootFields("query AppQuery { ...AppFragment }")).toEqual([]);
+        expect(extractRootFields("query X { ...AppFragment thing { id } }")).toEqual(["thing"]);
+        expect(extractRootFields("query X { __typename thing { id } }")).toEqual(["thing"]);
+    });
+
+    it("never takes an object default value in the variable definitions for the selection set", () => {
+        const text = "query X($f: Filter = {a: 1}) { realRoot { id } }";
+        expect(extractRootFields(text)).toEqual(["realRoot"]);
+    });
+
+    it("returns nothing without an operation header", () => {
+        expect(extractRootFields("const x = 1;")).toEqual([]);
     });
 });

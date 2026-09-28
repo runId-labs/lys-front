@@ -26,6 +26,11 @@ const PROVIDERS_DIR = join(ROOT_DIR, "src/components/providers");
 // webservices (login, logout, connectedUser...) belong to the manifest too, so
 // package.json ships the `__generated__` GraphQL artifacts this reads.
 const LYS_FRONT_PROVIDERS_DIR = join(__dirname, "..", "src", "providers");
+// App-level chatbot declarations (global webservices). Declarative on
+// purpose: a webservice the chatbot may call from any page does not have to
+// be mounted by a provider — running a query app-wide just to land in the
+// manifest would be a side effect, not a feature.
+const CHATBOT_CONFIG_FILE = join(ROOT_DIR, "chatbot.config.ts");
 const OUTPUT_FILE = join(ROOT_DIR, "public/routes-manifest.json");
 
 // Cache for webservices extraction
@@ -45,20 +50,27 @@ function extractStringValue(content, propertyName) {
 }
 
 /**
- * Extract extraWebservices array from config content
+ * Extract a string array property from TypeScript object content
  */
-function extractExtraWebservices(content) {
-    const match = content.match(/extraWebservices:\s*\[([^\]]*)\]/);
-    if (!match) return [];
+function extractStringArray(content, propertyName) {
+    const match = content.match(new RegExp(`${propertyName}:\\s*\\[([^\\]]*)\\]`));
+    if (!match) return null;
 
     const arrayContent = match[1];
-    const webservices = [];
+    const values = [];
     const stringRegex = /["']([^"']+)["']/g;
     let stringMatch;
     while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
-        webservices.push(stringMatch[1]);
+        values.push(stringMatch[1]);
     }
-    return webservices;
+    return values;
+}
+
+/**
+ * Extract extraWebservices array from config content
+ */
+function extractExtraWebservices(content) {
+    return extractStringArray(content, "extraWebservices") ?? [];
 }
 
 /**
@@ -69,10 +81,29 @@ function extractBraceBlock(content, openIndex) {
 
     let depth = 1;
     let endIndex = openIndex + 1;
+    let inString = false;
+    let quote = "";
 
     while (depth > 0 && endIndex < content.length) {
-        if (content[endIndex] === "{") depth++;
-        if (content[endIndex] === "}") depth--;
+        const char = content[endIndex];
+        if (inString) {
+            // An escaped character never closes the string, and never
+            // counts as a brace either.
+            if (char === "\\") {
+                endIndex += 2;
+                continue;
+            }
+            if (char === quote) {
+                inString = false;
+            }
+        } else if (char === "\"" || char === "'") {
+            inString = true;
+            quote = char;
+        } else if (char === "{") {
+            depth++;
+        } else if (char === "}") {
+            depth--;
+        }
         endIndex++;
     }
 
@@ -107,6 +138,10 @@ function parseParamSpec(specBlock) {
     if (maxLengthMatch) spec.max_length = parseInt(maxLengthMatch[1], 10);
 
     if (/multiple:\s*true/.test(specBlock)) spec.multiple = true;
+
+    if (/writable:\s*true/.test(specBlock)) spec.writable = true;
+
+    if (/internal:\s*true/.test(specBlock)) spec.internal = true;
 
     const maxItemsMatch = specBlock.match(/maxItems:\s*(\d+)/);
     if (maxItemsMatch) spec.max_items = parseInt(maxItemsMatch[1], 10);
@@ -272,11 +307,184 @@ function parsePageConfig(pageName) {
  ******************************************************************************/
 
 /**
+ * Index of the brace that opens an operation's selection set.
+ *
+ * The variable definitions may carry an object default value
+ * (`query X($f: Filter = {a: 1})`), whose brace is NOT the operation's:
+ * taking the first brace after the name would parse that object as the
+ * selection set and lose every root of the document. Scan for the first
+ * brace that sits outside the definitions' parens and outside a string.
+ */
+function findOperationBrace(text) {
+    const header = text.match(/(?:query|mutation)\s+\w+/);
+    if (!header) return -1;
+
+    let parenDepth = 0;
+    let inString = false;
+    let prev = "";
+    for (let index = header.index + header[0].length; index < text.length; index++) {
+        const char = text[index];
+        if (inString) {
+            if (char === "\"" && prev !== "\\") inString = false;
+        } else if (char === "\"") {
+            inString = true;
+        } else if (char === "(") {
+            parenDepth++;
+        } else if (char === ")") {
+            parenDepth--;
+        } else if (char === "{" && parenDepth === 0) {
+            return index;
+        }
+        prev = char;
+    }
+    return -1;
+}
+
+/**
+ * Is this token the name of a webservice?
+ *
+ * The scan collects every token sitting at the operation's own depth, and
+ * some of them reach no webservice: a directive (`@include`), a fragment
+ * spread (`...PageFragment`) and the meta field `__typename` are not
+ * fields of the schema's root, and a leftover of a malformed document is
+ * not a name at all.
+ */
+function isRootFieldName(token) {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token) && token !== "__typename";
+}
+
+/**
  * Extract webservice name from GraphQL operation text
  */
-function extractWebserviceFromText(text) {
-    const match = text.match(/(?:query|mutation)\s+\w+[^{]*\{\s*(\w+)/);
-    return match ? match[1] : null;
+function extractRootFields(text) {
+    /*
+     * A generated document can carry SEVERAL root fields ("query X { decision {...} allCompanies {...} }"):
+     * a page mounting that component can reach them all, and the manifest
+     * must say so. The text is a single-line, escaped GraphQL source, so
+     * the root fields are the names that sit at brace depth 0 of the
+     * operation's block — argument names and subfields live deeper, or
+     * inside parens, and never look like roots.
+     */
+    const braceIndex = findOperationBrace(text);
+    if (braceIndex === -1) return [];
+    const block = extractBraceBlock(text, braceIndex);
+    if (!block) return [];
+
+    const fields = [];
+    // Depth 1 inside the block is where the roots live: the operation's
+    // brace is depth 1, a root's subselection pushes to 2 and deeper. The
+    // name may be separated from its brace or parens by a space, so the
+    // last completed token is KEPT until the brace says what it was.
+    let braceDepth = 0, parenDepth = 0;
+    let buffer = "";
+    let pending = "";
+    let inString = false;
+    let prev = "";
+    for (const char of block) {
+        if (inString) {
+            if (char === "\"" && prev !== "\\") {
+                inString = false;
+            }
+            prev = char;
+            continue;
+        }
+        if (char === "\"") {
+            inString = true;
+            prev = char;
+            continue;
+        }
+        if (char === "{") {
+            const candidate = (buffer || pending).trim();
+            if (parenDepth === 0 && braceDepth === 1 && candidate) {
+                fields.push(candidate);
+            }
+            buffer = "";
+            pending = "";
+            braceDepth++;
+            prev = char;
+            continue;
+        }
+        if (char === "}") {
+            // The brace that closes the operation's own block: the last
+            // root of the document ends here, and it may be a scalar with
+            // no subselection — `mutation M { ping }` would otherwise be
+            // lost, since nothing but this brace ever confirms it.
+            if (braceDepth === 1 && parenDepth === 0) {
+                const candidate = (buffer || pending).trim();
+                if (candidate) {
+                    fields.push(candidate);
+                }
+            }
+            braceDepth--;
+            buffer = "";
+            pending = "";
+            prev = char;
+            continue;
+        }
+        if (char === "(") {
+            const candidate = (buffer || pending).trim();
+            if (parenDepth === 0 && braceDepth === 1 && candidate.startsWith("@")) {
+                // `thing @include(if: $s) { id }`: these parens belong to
+                // the directive, not to a field. The root already waiting
+                // in `pending` still expects its own brace, so keep it —
+                // clearing it would lose `thing` and record `@include`.
+                buffer = "";
+            } else {
+                if (parenDepth === 0 && braceDepth === 1 && candidate) {
+                    fields.push(candidate);
+                }
+                buffer = "";
+                pending = "";
+            }
+            parenDepth++;
+            prev = char;
+            continue;
+        }
+        if (char === ")") {
+            // `pending` survives: the paren closing a directive's
+            // arguments must not drop the root field waiting before it.
+            // A field's own paren already consumed its name on the way in.
+            parenDepth--;
+            buffer = "";
+            prev = char;
+            continue;
+        }
+        if (parenDepth > 0 || braceDepth > 1) {
+            prev = char;
+            continue;
+        }
+        if (/\s/.test(char)) {
+            const token = buffer.trim();
+            if (token) {
+                if (pending.includes(":")) {
+                    // An alias in progress (`renamed: otherThing`): the
+                    // pending token was the alias, never a root — the
+                    // field's name is the one that follows, and the
+                    // final map strips the alias away.
+                    pending = token;
+                } else {
+                    // A completed token at depth 1 while another is
+                    // already pending can only be a scalar root: a root
+                    // with a subselection or arguments would have met
+                    // its `{` or `(` before the next name completed.
+                    // `mutation M { ping logout }` would otherwise keep
+                    // only the last one.
+                    if (pending) {
+                        fields.push(pending);
+                    }
+                    pending = token;
+                }
+            }
+            buffer = "";
+            prev = char;
+            continue;
+        }
+        buffer += char;
+        prev = char;
+    }
+    return [...new Set(fields)]
+        .map(field => (field.split(":").pop() ?? field).replace(/,+$/, ""))
+        .filter(isRootFieldName);
 }
 
 /**
@@ -289,15 +497,22 @@ function parseGeneratedFile(filePath) {
         const kindMatch = content.match(/"operationKind":\s*"(\w+)"/);
         const operationKind = kindMatch ? kindMatch[1] : null;
 
-        const textMatch = content.match(/"text":\s*"([^"]+)"/);
+        // The text is JSON-encoded inside the generated file, and a GraphQL
+        // document may carry string literals (`typeId: \"FOUNDER_CUSTOMER\"`):
+        // stopping the capture at the first quote — escaped or not —
+        // truncates the document mid-argument, the brace block never
+        // closes, and every root of the file is lost from the manifest.
+        // Capture the whole JSON string and let JSON.parse undo the
+        // escapes; the root scanner is string-aware from there.
+        const textMatch = content.match(/"text":(\s*"(?:[^"\\]|\\.)*")/);
         if (!textMatch) return null;
 
-        const text = textMatch[1].replace(/\\n/g, " ");
-        const webservice = extractWebserviceFromText(text);
+        const text = JSON.parse(textMatch[1]).replace(/\n/g, " ");
+        const rootFields = extractRootFields(text);
 
-        if (!webservice) return null;
+        if (!rootFields.length) return null;
 
-        return {webservice, operationKind};
+        return rootFields.map(webservice => ({webservice, operationKind}));
     } catch (error) {
         return null;
     }
@@ -319,9 +534,9 @@ function getRestrictedWebservices(restrictedPath) {
 
         for (const file of files) {
             if (file.includes("Fragment_")) continue;
-            const result = parseGeneratedFile(join(generatedDir, file));
-            if (result) {
-                webservices.push(result);
+            const results = parseGeneratedFile(join(generatedDir, file));
+            if (results) {
+                webservices.push(...results);
             }
         }
     }
@@ -456,6 +671,30 @@ function getPageWebservices(pageName) {
     return Array.from(webservicesMap.values());
 }
 
+/**
+ * Get the app-declared global webservices (chatbot.config.ts).
+ *
+ * A missing file is not an error — declaring globals is opt-in. A present
+ * file whose `globalWebservices` cannot be read, on the other hand, would
+ * silently shrink the manifest, so it is reported rather than skipped.
+ */
+function getDeclaredGlobalWebservices() {
+    if (!existsSync(CHATBOT_CONFIG_FILE)) {
+        return [];
+    }
+
+    const content = readFileSync(CHATBOT_CONFIG_FILE, "utf-8");
+    const declared = extractStringArray(content, "globalWebservices");
+    if (declared === null) {
+        console.warn(
+            `  ! ${basename(CHATBOT_CONFIG_FILE)} exists but its globalWebservices ` +
+                "array could not be read — the declared globals are missing from the manifest"
+        );
+        return [];
+    }
+    return declared;
+}
+
 /******************************************************************************
  * GLOBAL WEBSERVICES (PROVIDERS)
  ******************************************************************************/
@@ -495,9 +734,9 @@ function getGlobalWebservices() {
 
             for (const file of files) {
                 if (file.includes("Fragment_")) continue;
-                const result = parseGeneratedFile(join(generatedDir, file));
-                if (result) {
-                    webservices.push(result.webservice);
+                const results = parseGeneratedFile(join(generatedDir, file));
+                if (results) {
+                    webservices.push(...results.map(result => result.webservice));
                 }
             }
         }
@@ -566,8 +805,14 @@ function main() {
 
     routes.sort((a, b) => a.path.localeCompare(b.path));
 
-    // Get global webservices from providers
-    const globalWebservices = getGlobalWebservices();
+    // Global webservices: the ones the providers run everywhere (framework
+    // first: login, logout, connectedUser) plus the ones the app declares
+    // in chatbot.config.ts. Declared and discovered are merged, not chosen
+    // between: the file is the app's say, the providers the framework's.
+    const globalWebservices = [...new Set([
+        ...getGlobalWebservices(),
+        ...getDeclaredGlobalWebservices()
+    ])].sort();
 
     const manifest = {
         version: "1.0",
@@ -613,4 +858,4 @@ if (isRunAsProgram()) {
     main();
 }
 
-export {extractBraceBlock, parseParamSpec, extractParams, extractChatbotBehaviour};
+export {extractBraceBlock, parseParamSpec, extractParams, extractChatbotBehaviour, extractStringArray, extractRootFields};

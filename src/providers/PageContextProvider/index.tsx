@@ -70,14 +70,28 @@ const PageContextProvider: React.FC<PageContextProviderProps> = ({children}) => 
      * Merge additional params into the internal params.
      * Used by page components to add dynamic state (e.g., year, live slider values)
      * without being overwritten by RouteProvider's URL param updates.
+     *
+     * A `null` value REMOVES the key instead of merging it: some state is a
+     * one-shot the component consumes and takes back (a node to center on, a
+     * row to reveal), and a merge with no way to unset would leave the context
+     * asserting a state the screen no longer has. Set a value to declare it,
+     * null to retract it; nothing else distinguishes "not set" from "set to
+     * nothing" for a reader of `context.params`.
      */
     const updatePageParams = useCallback((
         additionalParams: Record<string, PageContextParamValue>
     ) => {
-        setState(prev => ({
-            ...prev,
-            internalParams: {...prev.internalParams, ...additionalParams}
-        }));
+        setState(prev => {
+            const internalParams = {...prev.internalParams};
+            Object.entries(additionalParams).forEach(([key, value]) => {
+                if (value === null) {
+                    delete internalParams[key];
+                } else {
+                    internalParams[key] = value;
+                }
+            });
+            return {...prev, internalParams};
+        });
     }, []);
 
     /**

@@ -125,6 +125,43 @@ describe("PageContextProvider", () => {
         expect(getValue().context.params).toEqual({a: 1, b: 99, c: 3});
     });
 
+    it("removes an internal param passed as null (a consumed one-shot is retracted)", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("Page", {companyId: "123"});
+        });
+
+        act(() => {
+            getValue().updatePageParams({focusId: "DecisionNode:1"});
+        });
+
+        expect(getValue().context.params).toEqual({companyId: "123", focusId: "DecisionNode:1"});
+
+        act(() => {
+            getValue().updatePageParams({focusId: null});
+        });
+
+        expect(getValue().context.params).toEqual({companyId: "123"});
+        expect("focusId" in getValue().context.params).toBe(false);
+    });
+
+    it("removing an internal param never touches the URL param of the same name", () => {
+        const {getValue} = renderPageContextProvider();
+
+        act(() => {
+            getValue().setPageContext("Page", {kpiId: "turnover"});
+        });
+
+        act(() => {
+            getValue().updatePageParams({kpiId: null});
+        });
+
+        // The URL is RouteProvider's, not this setter's: only the internal
+        // override is retracted, and the URL value surfaces again.
+        expect(getValue().context.params).toEqual({kpiId: "turnover"});
+    });
+
     it("preserves pageName when updatePageParams is called", () => {
         const {getValue} = renderPageContextProvider();
 

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-28
+
+### Added
+
+- `ChatbotParamSpec.writable`: a page marks the params the MODEL may set (`set_page_params`, `navigate` arrival filters) — reading every declared param, writing only the writable ones. Default off, opt-in per param; the generator emits the flag and the lys validator enforces it
+- `ChatbotParamSpec.internal` and `FrontendAction.internalParams`: a page declares a param as component state rather than a URL filter — the model's writes route through `updatePageParams` (page context) instead of the URL, so an internal flag never lands in the URL; reads stay bound to the declared schema
+- The manifest generator reads the consumer's `chatbot.config.ts` (`globalWebservices`), merged with — not chosen over — the provider scan, so an app declares the framework-level webservices its pages reach through global components
+- The manifest generator records EVERY root field of a generated document — the previous reader kept only the first — so a page mounting a multi-root component declares all of its webservices in the manifest
+- 15 tests covering the root field extraction (multi-root, scalar root, alias, directive, fragment spread, string literal, object default value), the declared global webservices and the page context param removal
+
+### Changed
+
+- `usePageContext().updatePageParams` removes a key passed as `null` instead of merging the null. A one-shot param (a node to center on, a row to reveal) is consumed by the component and retracted, so the page context stops asserting a state the screen no longer has — and the chatbot's read path stops rejecting a null every turn. No consumer passed null before: setting a value still declares it.
+
+### Fixed
+
+- The manifest generator captures the generated document's `text` as a JSON string: an argument holding a string literal (`typeId: "FOUNDER_CUSTOMER"`) no longer truncates the document mid-argument, a truncation that left the brace scan unbalanced and dropped every root field of the file
+- The manifest generator reads the field name behind its alias (`draftActions: allActions` declares `allActions`) and keeps a scalar root (`mutation M { ping }`), both of which the previous reader lost
+- The manifest generator no longer takes a non-field token for a webservice: a root directive (`thing @include(if: $s)` declares `thing`), a fragment spread, `__typename`, a brace inside a string literal and an object default value in the variable definitions (`query X($f: Filter = {a: 1})`) each used to yield a wrong name or drop the document
+
 ## [0.18.0] - 2026-09-27
 
 ### Added

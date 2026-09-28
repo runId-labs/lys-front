@@ -23,7 +23,11 @@ export interface PageContextValue {
     context: PageContext;
     /** Set pageName and params (called by RouteProvider) */
     setPageContext: (pageName: string, params?: Record<string, PageContextParamValue>) => void;
-    /** Merge additional params into current context without replacing existing ones */
+    /**
+     * Merge additional params into current context without replacing existing ones.
+     * A `null` value removes that key — the way a one-shot param is retracted
+     * once the component has consumed it.
+     */
     updatePageParams: (additionalParams: Record<string, PageContextParamValue>) => void;
     /** Clear all context */
     clearPageContext: () => void;

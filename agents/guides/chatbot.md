@@ -68,11 +68,14 @@ backend keeps validating against the previous version.
 ## FrontendAction (backend-driven UI actions)
 
 The streaming chat response may carry `frontendActions`: typed actions the
-FRONT executes — `navigate` (path + params substitution, optional
-`continueAction`), `refresh` (node types), plus PROJECT-DEFINED types
-(e.g. proposals) that the application's chat panel interprets. Generic
-navigation/refresh live in the framework; anything richer belongs to the
-app's chat component.
+FRONT executes — `navigate` (path, `:param` substitution then the remaining
+params as a query string — the model's validated arrival filters — optional
+`continueAction`), `refresh` (node types), `update_page_params` (the filters
+the model set through `set_page_params`: apply with `useUrlQueries().update()`,
+the URL is the source of truth and the screen refilters), plus PROJECT-DEFINED
+types (e.g. proposals) that the application's chat panel interprets. Generic
+navigation/refresh/filter-update live in the framework; anything richer belongs
+to the app's chat component.
 
 ## RULES
 
@@ -90,3 +93,17 @@ app's chat component.
   `text` can, so declare it only for a field that legitimately holds prose (a
   search box) and cap it to what the page produces. Document every declared
   key in the prompt — its meaning, and the default when it is absent.
+- **R6 — `writable` is a separate grant**: the model may SET only the params
+  marked `writable: true` (`set_page_params`, `navigate` arrival filters) —
+  default off, opt-in per param. The dossier-level id (`clientId`) typically
+  stays read-only: the model works WITHIN the user's dossier, never switches
+  it. An `update_page_params` action applies each half through its channel:
+  `params` via `useUrlQueries().update()` (the URL, source of truth for
+  filters), `internalParams` via `updatePageParams()` (page context, component
+  state).
+- **R7 — `internal: true` declares component state**, not a URL filter: the
+  value rides the page context (`updatePageParams`), never the URL. A component
+  exposing such a param syncs its state both ways — its own toggle pushes the
+  value to the context, and a context change (e.g. the model's
+  `set_page_params`) updates the component. Declare it, document it in the
+  prompt like any other param.

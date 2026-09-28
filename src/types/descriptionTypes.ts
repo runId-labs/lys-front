@@ -28,6 +28,19 @@ interface ChatbotParamListOptions {
     multiple?: boolean
     /** Cap on a list-valued param's length. Defaults to 50 server-side. */
     maxItems?: number
+    /**
+     * The model may SET this param (`set_page_params`, `navigate` arrival
+     * filters). Reading is every declared param; writing is only the ones
+     * marked here — off by default, so a page opts in per param.
+     */
+    writable?: boolean
+    /**
+     * Component state, not a URL filter: the value travels through
+     * `updatePageParams` (page context), never through the URL. Reading is
+     * the same declared-schema boundary; writing routes to the page context
+     * instead of `useUrlQueries` — an internal flag never lands in the URL.
+     */
+    internal?: boolean
 }
 
 /**

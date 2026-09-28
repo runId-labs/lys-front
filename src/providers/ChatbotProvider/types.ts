@@ -7,6 +7,12 @@ export interface FrontendAction {
     type: string;
     path?: string | null;
     params?: Record<string, unknown> | null;
+    /**
+     * Component-state half of an `update_page_params` action: params declared
+     * `internal` on the page, applied through `updatePageParams` (page
+     * context) instead of the URL. Absent when the model set URL filters only.
+     */
+    internalParams?: Record<string, unknown> | null;
     nodes?: string[] | null;
     continueAction?: boolean | null;
 }
