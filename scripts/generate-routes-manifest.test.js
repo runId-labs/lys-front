@@ -3,6 +3,7 @@ import {
     extractBraceBlock,
     parseParamSpec,
     extractParams,
+    unusableParams,
     extractChatbotBehaviour,
     extractStringArray,
     extractRootFields
@@ -22,7 +23,7 @@ export const config: PageDescriptionType = {
         params: {
             orderId: {type: "global_id"},
             status: {type: "enum", values: ["DRAFT", "PAID"], multiple: true, maxItems: 5},
-            search: {type: "text", maxLength: 120},
+            search: {type: "text"},
         },
     },
 };
@@ -47,13 +48,16 @@ describe("extractBraceBlock", () => {
 });
 
 describe("parseParamSpec", () => {
-    it("translates maxLength and maxItems to the manifest keys", () => {
-        expect(parseParamSpec('{type: "text", maxLength: 120}')).toEqual({type: "text", max_length: 120});
+    it("translates maxItems to the manifest key", () => {
         expect(parseParamSpec('{type: "int", multiple: true, maxItems: 5}')).toEqual({
             type: "int",
             multiple: true,
             max_items: 5
         });
+    });
+
+    it("still reads maxLength, which unusableParams needs in order to refuse it", () => {
+        expect(parseParamSpec('{type: "text", maxLength: 120}')).toEqual({type: "text", max_length: 120});
     });
 
     it("keeps the declared enum values in order", () => {
@@ -79,12 +83,81 @@ describe("extractParams", () => {
         expect(params).toEqual({
             orderId: {type: "global_id"},
             status: {type: "enum", values: ["DRAFT", "PAID"], multiple: true, max_items: 5},
-            search: {type: "text", max_length: 120}
+            search: {type: "text"}
         });
     });
 
     it("returns null when the page declares none", () => {
         expect(extractParams("chatbotBehaviour: {prompt: `hi`}")).toBeNull();
+    });
+});
+
+describe("unusableParams", () => {
+    it("accepts the declarations the validator uses as written", () => {
+        expect(unusableParams("orders", {
+            orderId: {type: "global_id"},
+            status: {type: "enum", values: ["DRAFT", "PAID"], multiple: true, max_items: 5},
+            search: {type: "text"}
+        })).toEqual([]);
+    });
+
+    it("refuses an enum with nothing to match against", () => {
+        const problems = unusableParams("orders", {status: {type: "enum"}});
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain('param "status" declares enum without values');
+    });
+
+    it("refuses a text param that states its own length", () => {
+        const problems = unusableParams("orders", {search: {type: "text", max_length: 40}});
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain("declares maxLength, which is not the page's to state");
+        // The number is NOT quoted: a deployment may raise the cap, and a message
+        // carrying a copy of it would be the copy that goes stale.
+        expect(problems[0]).not.toMatch(/\d/);
+    });
+
+    it("refuses a maxLength of zero, which truthiness would let through", () => {
+        expect(unusableParams("orders", {search: {type: "text", max_length: 0}})).toHaveLength(1);
+    });
+
+    it("refuses a maxLength of 0, which states a length like any other", () => {
+        expect(unusableParams("orders", {search: {type: "text", max_length: 0}})).toHaveLength(1);
+    });
+
+    it("refuses a text param whose length is at the framework cap all the same", () => {
+        // The number matching today's cap is not the point: it is a second copy of it.
+        expect(unusableParams("orders", {search: {type: "text", max_length: 80}})).toHaveLength(1);
+    });
+
+    it("refuses a multiple text, whatever it declares", () => {
+        for (const spec of [
+            {type: "text", multiple: true},
+            {type: "text", multiple: true, max_items: 2},
+            {type: "text", multiple: true, max_items: 50}
+        ]) {
+            const problems = unusableParams("orders", {tags: spec});
+            expect(problems).toHaveLength(1);
+            expect(problems[0]).toContain("is a multiple text, which is not allowed");
+        }
+    });
+
+    it("leaves lists to the other types, which carry no prose", () => {
+        expect(unusableParams("orders", {
+            ids: {type: "global_id", multiple: true, max_items: 50}
+        })).toEqual([]);
+    });
+
+    it("reports every problem of a page, so one run shows the whole fix", () => {
+        expect(unusableParams("orders", {
+            status: {type: "enum"},
+            search: {type: "text", max_length: 40},
+            tags: {type: "text", multiple: true, max_items: 20}
+        })).toHaveLength(3);
+    });
+
+    it("names the page in each problem", () => {
+        const [problem] = unusableParams("dashboard", {status: {type: "enum"}});
+        expect(problem.startsWith("dashboard: ")).toBe(true);
     });
 });
 

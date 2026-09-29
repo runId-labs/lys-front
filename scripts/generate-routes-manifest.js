@@ -113,9 +113,11 @@ function extractBraceBlock(content, openIndex) {
 /**
  * Parse one declared param spec into its manifest shape
  *
- * The page description writes camelCase (`maxLength`, `maxItems`); the validator
- * reads snake_case (`max_length`, `max_items`), so the keys are translated here
- * like `contextTools` is.
+ * The page description writes camelCase (`maxItems`); the validator reads snake_case
+ * (`max_items`), so the keys are translated here like `contextTools` is. `maxLength`
+ * is read too, for the sole purpose of refusing it in `unusableParams`: a text param's
+ * length belongs to the framework, so a declaration carrying one never reaches a
+ * manifest — the generation fails first.
  */
 function parseParamSpec(specBlock) {
     const type = extractStringValue(specBlock, "type");
@@ -134,6 +136,7 @@ function parseParamSpec(specBlock) {
         if (values.length > 0) spec.values = values;
     }
 
+    // Read only to refuse it: a page states the type, the framework the length.
     const maxLengthMatch = specBlock.match(/maxLength:\s*(\d+)/);
     if (maxLengthMatch) spec.max_length = parseInt(maxLengthMatch[1], 10);
 
@@ -182,17 +185,46 @@ function extractParams(behaviourContent) {
 }
 
 /**
- * Warn about declarations the validator will drop at runtime
+ * Collect the param declarations the validator will not use as written.
+ *
+ * Returns the reasons, for the caller to fail on. None of these is an intermediate
+ * state anyone wants to ship: the param renders nothing or carries a number the
+ * framework overrides, while the page's prompt keeps promising the model a filter —
+ * and the model answers as if it had it. A warning in a build log does not catch that.
  */
-function warnUnusableParams(pageName, params) {
+function unusableParams(pageName, params) {
+    const problems = [];
     for (const [key, spec] of Object.entries(params)) {
         if (spec.type === "enum" && !spec.values) {
-            console.warn(`  ! ${pageName}: param "${key}" declares enum without values, it will accept nothing`);
+            // The validator refuses an enum with nothing to match against.
+            problems.push(`${pageName}: param "${key}" declares enum without values, it will accept nothing`);
         }
-        if (spec.type === "text" && !spec.max_length) {
-            console.warn(`  ! ${pageName}: param "${key}" declares text without maxLength, it will accept nothing`);
+        if (spec.type !== "text") continue;
+
+        // !== undefined, not truthiness: `maxLength: 0` is falsy and would slip through
+        // into the manifest, where the validator reads it as a declaration.
+        if (spec.max_length !== undefined) {
+            // The validator overwrites it with the framework's cap and logs the
+            // declaration. Refused here rather than carried: the number would live in
+            // two places, and the page's copy is the one nobody updates.
+            problems.push(
+                `${pageName}: param "${key}" declares maxLength, which is not the page's `
+                + "to state — the framework caps free text, and the number would live in "
+                + "two places"
+            );
+        }
+
+        if (spec.multiple) {
+            // Dropped at runtime: a list multiplies the prose it brings, and what
+            // legitimately comes in several — tags, companies, statuses — is a closed
+            // type. This is the rule here that catches a vanishing filter.
+            problems.push(
+                `${pageName}: param "${key}" is a multiple text, which is not allowed — `
+                + "what comes in several is a closed type (enum, global_id)"
+            );
         }
     }
+    return problems;
 }
 
 /**
@@ -293,9 +325,9 @@ function parsePageConfig(pageName) {
         const {behaviour: chatbotBehaviour, params} = extractChatbotBehaviour(content);
         const extraWebservices = extractExtraWebservices(content);
 
-        if (params) warnUnusableParams(pageName, params);
+        const problems = params ? unusableParams(pageName, params) : [];
 
-        return {path, description, type, chatbotBehaviour, params, extraWebservices};
+        return {path, description, type, chatbotBehaviour, params, extraWebservices, problems};
     } catch (error) {
         console.error(`Error parsing ${configPath}:`, error.message);
         return null;
@@ -771,10 +803,15 @@ function main() {
     console.log(`Found ${pageDirs.length} page directories`);
 
     const routes = [];
+    // Declarations the validator would drop at runtime, collected across pages and
+    // failed on together: a dev fixing one wants to see the others, not to rerun.
+    const problems = [];
 
     for (const pageName of pageDirs) {
         const config = parsePageConfig(pageName);
         if (!config) continue;
+
+        problems.push(...(config.problems || []));
 
         const webservices = getPageWebservices(pageName);
 
@@ -801,6 +838,19 @@ function main() {
         }
 
         routes.push(route);
+    }
+
+    if (problems.length > 0) {
+        console.error(
+            `\n${problems.length} param declaration(s) the validator will not use as `
+            + "written — a filter that renders nothing or a cap the framework overrides, "
+            + "while the page's prompt keeps promising the model the filter:"
+        );
+        for (const problem of problems) {
+            console.error(`  ✗ ${problem}`);
+        }
+        console.error("");
+        process.exit(1);
     }
 
     routes.sort((a, b) => a.path.localeCompare(b.path));
@@ -858,4 +908,4 @@ if (isRunAsProgram()) {
     main();
 }
 
-export {extractBraceBlock, parseParamSpec, extractParams, extractChatbotBehaviour, extractStringArray, extractRootFields};
+export {extractBraceBlock, parseParamSpec, extractParams, unusableParams, extractChatbotBehaviour, extractStringArray, extractRootFields};

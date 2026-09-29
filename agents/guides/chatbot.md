@@ -36,16 +36,26 @@ chatbotBehaviour: {
     params: {
         orderId: {type: "global_id"},
         status: {type: "enum", values: ["DRAFT", "PAID"], multiple: true},
-        search: {type: "text", maxLength: 120},
+        search: {type: "text"},
     },
 }
 ```
 
 Types: `global_id`, `uuid`, `int`, `bool`, `date`, `enum` (needs `values`),
-`text` (needs `maxLength`). `multiple` makes the param a list, capped by
-`maxItems` (50 by default), and one invalid item drops the whole list. `enum`
-without `values` and `text` without `maxLength` accept nothing — the omission
-fails closed, and the generator warns at build time.
+`text`. `multiple` makes the param a list, capped by `maxItems` (50 by
+default), and one invalid item drops the whole list.
+
+A `text` param declares neither a length nor a list. How much prose reaches
+the prompt is the framework's call: it caps every text declaration as the
+manifest is read, so a `maxLength` on the page would put that number in a
+second place — the one nobody updates. And what legitimately comes in several
+— tags, companies, statuses — is a closed type, so a list never carries free
+text. The type rejects both, and the generator fails on both.
+
+The generator exits non-zero, listing every page and param, on a declaration
+the validator will not use as written: an `enum` without `values` (it accepts
+nothing), a `text` with a `maxLength`, and a `text` with `multiple`. Each
+would otherwise ship a prompt promising the model a filter it never receives.
 
 `chatbotBehaviour.specialTools` is declared the same way and gated the same
 way: a special tool (`propose_memory`, `propose_action`...) the page does not

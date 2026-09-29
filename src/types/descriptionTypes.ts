@@ -45,19 +45,26 @@ interface ChatbotParamListOptions {
 
 /**
  * One declared param, discriminated on `type` so an option a type ignores cannot
- * be set: `values` belongs to `enum`, `maxLength` to `text`. Both are required
- * because the validator fails closed on a declaration it cannot use — an `enum`
- * without values and a `text` without a cap accept nothing at all.
+ * be set: `values` belongs to `enum` and is required, because the validator fails
+ * closed on an enum with nothing to match against.
+ *
+ * A `text` param declares no length. How much prose a type may carry into the prompt
+ * is the framework's to decide, not the page's: the validator caps every text
+ * declaration as the manifest is read, and a `maxLength` written here would be a
+ * second copy of that number — the one nobody updates. The generator refuses it.
+ *
+ * A `text` param cannot be a list either: a list multiplies the prose it brings, and
+ * what legitimately comes in several — tags, companies, statuses — is a closed type.
+ * The validator drops a multi-valued text; here it does not compile.
  *
  * Written in camelCase here, like the rest of the page description;
- * `scripts/generate-routes-manifest.js` emits the manifest keys
- * (`max_length`, `max_items`) the validator reads.
+ * `scripts/generate-routes-manifest.js` emits the manifest keys (`max_items`) the
+ * validator reads.
  */
-export type ChatbotParamSpec = ChatbotParamListOptions & (
-    | { type: "enum"; values: string[] }
-    | { type: "text"; maxLength: number }
-    | { type: Exclude<ChatbotParamType, "enum" | "text"> }
-)
+export type ChatbotParamSpec =
+    | (ChatbotParamListOptions & { type: "enum"; values: string[] })
+    | (ChatbotParamListOptions & { type: Exclude<ChatbotParamType, "enum" | "text"> })
+    | (Omit<ChatbotParamListOptions, "multiple" | "maxItems"> & { type: "text" })
 
 export interface ChatbotBehaviourType {
     prompt?: string;

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-29
+
+### Changed
+
+- `ChatbotParamSpec` no longer carries `maxLength`, and a `text` param can no longer be a list. How much prose a type brings into the prompt is the framework's to decide — the validator caps every text declaration as the manifest is read, so a number written on the page was a second copy of it, the one nobody updates. And what legitimately comes in several — tags, companies, statuses — is a closed type, so a list never carries free text. Both now fail to compile. **Migration**: remove `maxLength` from every `text` param, and turn a multiple `text` into an `enum` or a `global_id`; the generator names each page and param it refuses
+- `scripts/generate-routes-manifest.js` exits non-zero on a param declaration the validator will not use as written — an `enum` without `values`, a `text` with a `maxLength`, a `text` with `multiple` — instead of warning and emitting the manifest anyway. A warning in a build log does not catch a filter that renders nothing while the page's prompt keeps promising the model it exists. Every problem of every page is listed in one run, so one pass shows the whole fix
+
+### Added
+
+- 9 tests covering the refused declarations (enum without values, `maxLength` including 0, multiple text whatever it declares, the accepted types keeping their lists, several problems per page, the page named in each)
+
 ## [0.19.0] - 2026-09-28
 
 ### Added
