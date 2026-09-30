@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-30
+
+### Fixed
+
+- `LysDialogProvider`: `open()` on a `uniqueKey` already on the stack no longer stacks a second entry. The existing dialog is brought back to the top as it is (title, bodyProps and loading state kept, the new payload dropped), so an opener effect that runs again no longer buries a filled dialog under a copy stuck in loading. Use `update(uniqueKey, …)` to change what an open dialog shows
+- `ClientProvider` no longer syncs `clientId` to the URL on a path no route matches. The sync's `setSearchParams` overrode the router's `<Navigate>` redirect (not-found page or default route), leaving the user on a blank page
+
 ## [0.20.0] - 2026-09-29
 
 ### Changed

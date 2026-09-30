@@ -105,6 +105,29 @@ describe("LysDialogProvider", () => {
             expect(getDialog().canGoBack).toBe(true);
         });
 
+        it("re-opening a key brings the existing dialog to the top, as it is", () => {
+            const {getDialog} = renderDialogProvider();
+
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, loading: true});
+            });
+            act(() => {
+                getDialog().update("d1", {title: "D1 filled", loading: false});
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "d2", title: "D2", body: <div>2</div>});
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1 again", body: <div>1b</div>, loading: true});
+            });
+
+            expect(getDialog().stack).toHaveLength(2);
+            expect(getDialog().stack.map(dialog => dialog.uniqueKey)).toEqual(["d2", "d1"]);
+            expect(getDialog().current?.uniqueKey).toBe("d1");
+            expect(getDialog().current?.title).toBe("D1 filled");
+            expect(getDialog().current?.loading).toBe(false);
+        });
+
         it("close pops the last dialog", () => {
             const {getDialog} = renderDialogProvider();
 

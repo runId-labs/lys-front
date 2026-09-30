@@ -20,8 +20,11 @@ openDialog({
 });
 ```
 
-Dialogs STACK (`stack`, `current`); same `uniqueKey` re-opens/updates instead
-of stacking a twin.
+Dialogs STACK (`stack`, `current`). `open()` on a `uniqueKey` already on the
+stack never stacks a twin: the existing entry comes back to the top AS IT IS
+(its title, bodyProps and loading state kept, the new payload dropped), so an
+opener effect that runs again is harmless and a filled dialog is never reset
+to loading. To change what an open dialog shows, call `update(uniqueKey, …)`.
 
 ## Hooks
 

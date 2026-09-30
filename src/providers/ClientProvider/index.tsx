@@ -61,17 +61,24 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children, rou
      * overriding <Navigate> redirect in PublicAppTemplate when an authenticated
      * user lands on a public page (e.g. /login).
      *
+     * Skip as well on a path no route matches: the router is redirecting it
+     * (to the not-found page, or "/" to the default route) through a
+     * <Navigate> that runs in the same commit. A setSearchParams issued here
+     * rebuilds the URL from the unmatched location and wins over that
+     * redirect, and the still-mounted <Navigate> never fires again — the
+     * user is left on a blank page carrying a clientId.
+     *
      * For locked users (user.clientId set), also sync to URL so that
      * pageContext.params always contains clientId (needed by chatbot mutations).
      */
-    const isPublicPage = useMemo(() => {
+    const isSyncablePage = useMemo(() => {
         const matchedRoute = routes.find(route => matchPath(route.path, location.pathname));
-        return matchedRoute?.type === "public";
+        return matchedRoute !== undefined && matchedRoute.type !== "public";
     }, [routes, location.pathname]);
 
     useEffect(() => {
         if (!user) return;
-        if (isPublicPage) return;
+        if (!isSyncablePage) return;
 
         const resolvedClientId = isLocked ? user.clientId : selectedClientId;
 
@@ -80,7 +87,7 @@ const ClientProvider: React.ComponentType<ClientProviderProps> = ({children, rou
         } else {
             updateUrl({[URL_PARAM_KEY]: null});
         }
-    }, [selectedClientId, location.pathname, isLocked, user, updateUrl, isPublicPage]);
+    }, [selectedClientId, location.pathname, isLocked, user, updateUrl, isSyncablePage]);
 
     /**
      * Resolved clientId: locked from user profile or manual selection

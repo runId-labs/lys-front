@@ -229,6 +229,19 @@ describe("ClientProvider", () => {
         expect(getValue().appliedParams.get("clientId")).toBeNull();
     });
 
+    it("does not sync clientId to URL on a path no route matches", async () => {
+        const {getValue} = renderClientProvider({
+            user: mockUser,
+            initialEntries: ["/unknown-page"]
+        });
+
+        await act(async () => {
+            await new Promise(r => setTimeout(r, 0));
+        });
+
+        expect(getValue().appliedParams.get("clientId")).toBeNull();
+    });
+
     it("does not sync clientId to URL when user is disconnected", async () => {
         sessionStorage.setItem(SESSION_KEY, "stale-client");
         const {getValue} = renderClientProvider({user: undefined});
