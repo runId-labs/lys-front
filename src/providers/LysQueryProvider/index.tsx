@@ -234,7 +234,19 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
      ******************************************************************************************************************/
 
     const [data, setData] = useState<TQuery["response"] | undefined>(undefined);
-    const [load, setLoad] = useState<boolean>(false);
+
+    // A load is a REQUEST with a number, not a flag. A flag raised twice reads as raised
+    // once: when a second reload lands between the load effect and its commit — two
+    // refresh signals a few milliseconds apart are enough — the queued updates collapse
+    // (load: true -> false -> true, queryReference: null -> ref -> null) into "nothing
+    // changed", the effect never re-runs, and the provider stays requested-but-never-
+    // loaded for good: a panel spinning forever on a query nobody sent. A counter cannot
+    // collapse: the second request is a different number, and the effect sees it.
+    const [loadRequest, setLoadRequest] = useState<number>(0);
+    const [handledLoadRequest, setHandledLoadRequest] = useState<number>(0);
+
+    // Requested and not yet handed to the query loader.
+    const load = loadRequest !== handledLoadRequest;
 
     /*******************************************************************************************************************
      *                                                  CALLBACKS
@@ -242,7 +254,7 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
 
     const reloadQuery = useCallback(() => {
         disposeQuery();
-        setLoad(true);
+        setLoadRequest(request => request + 1);
     }, [disposeQuery]);
 
     // Called from LysQueryProviderChild's effect once Suspense/usePreloadedQuery resolves for
@@ -262,10 +274,10 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
      */
     useEffect(() => {
         if (hasPermission && load && !queryReference) {
-            setLoad(false);
+            setHandledLoadRequest(loadRequest);
             connectedUserInfo.push(() => loadQuery(parameters, options));
         }
-    }, [hasPermission, load, queryReference, connectedUserInfo.push, loadQuery, parameters, options]);
+    }, [hasPermission, load, loadRequest, queryReference, connectedUserInfo.push, loadQuery, parameters, options]);
 
     /**
      * Handle refresh signal from ChatbotProvider

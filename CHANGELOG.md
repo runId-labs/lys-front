@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-01
+
+### Fixed
+
+- `LysQueryProvider`: two `load()` calls a few milliseconds apart no longer leave the provider requested-but-never-loaded. The load was a boolean flag: when the second call landed between the load effect and its commit (two refresh signals in a row are enough), the queued updates collapsed into "nothing changed", the effect never re-ran and `isLoading` stayed `true` with no query sent — a panel spinning forever. A load is now a numbered request, which cannot collapse: the second request is handed to the query loader as soon as the first is disposed
+
 ## [0.20.1] - 2026-09-30
 
 ### Fixed

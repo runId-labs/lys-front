@@ -20,15 +20,36 @@ let mockPreloadedError: Error | null = null;
 // When set, usePreloadedQuery throws it to simulate a query still in flight (Suspense)
 let mockPreloadedSuspender: Promise<unknown> | null = null;
 
-vi.mock("react-relay", () => ({
-    graphql: (strings: TemplateStringsArray) => ({__mock: true, text: strings[0]}),
-    useQueryLoader: () => [mockQueryRef, mockLoadQuery, mockDisposeQuery],
-    usePreloadedQuery: () => {
-        if (mockPreloadedSuspender) throw mockPreloadedSuspender;
-        if (mockPreloadedError) throw mockPreloadedError;
-        return mockPreloadedData;
-    },
-}));
+// When true, useQueryLoader behaves like Relay's: loadQuery sets a reference in state,
+// disposeQuery clears it. The static mock above cannot show a reference coming and
+// going within one batch, which is exactly what the reload race is made of.
+let mockStatefulLoader = false;
+
+vi.mock("react-relay", async () => {
+    const ReactModule = await import("react");
+    return {
+        graphql: (strings: TemplateStringsArray) => ({__mock: true, text: strings[0]}),
+        useQueryLoader: () => {
+            // The flag never changes within a test, so the hook order is stable.
+            if (!mockStatefulLoader) return [mockQueryRef, mockLoadQuery, mockDisposeQuery];
+            const [reference, setReference] = ReactModule.useState<object | null>(null);
+            const load = ReactModule.useCallback((...args: unknown[]) => {
+                setReference({__id: `ref-${mockLoadQuery.mock.calls.length}`});
+                mockLoadQuery(...args);
+            }, []);
+            const dispose = ReactModule.useCallback(() => {
+                mockDisposeQuery();
+                setReference(null);
+            }, []);
+            return [reference, load, dispose];
+        },
+        usePreloadedQuery: () => {
+            if (mockPreloadedSuspender) throw mockPreloadedSuspender;
+            if (mockPreloadedError) throw mockPreloadedError;
+            return mockPreloadedData;
+        },
+    };
+});
 
 vi.mock("./styles.scss", () => ({}));
 
@@ -116,6 +137,7 @@ describe("LysQueryProvider", () => {
         mockPreloadedData = {};
         mockPreloadedError = null;
         mockPreloadedSuspender = null;
+        mockStatefulLoader = false;
     });
 
     describe("permission checking", () => {
@@ -418,6 +440,51 @@ describe("LysQueryProvider", () => {
 
             expect(ref.current.data).toEqual({v: 1});
             expect(ref.current.isLoading).toBe(true);
+        });
+
+        it("still loads when a second reload lands between the load effect and its commit", () => {
+            // Two refresh signals a few milliseconds apart: the second load() is called
+            // after the effect handed the first to the query loader, but before React
+            // committed that. With a boolean flag the queued updates collapsed into "no
+            // change" and the provider stayed requested-but-never-loaded forever.
+            mockStatefulLoader = true;
+            mockPreloadedData = {v: 2};
+            const ref = React.createRef<any>();
+            render(buildTree(ref));
+
+            let raced = false;
+            mockLoadQuery.mockImplementation(() => {
+                if (!raced) {
+                    raced = true;
+                    // Lands inside the same batch as the effect's own updates.
+                    ref.current.load();
+                }
+            });
+
+            act(() => {
+                ref.current.load();
+            });
+
+            // The second request was handed to the loader too, and the query resolved.
+            expect(mockLoadQuery).toHaveBeenCalledTimes(2);
+            expect(ref.current.isLoading).toBe(false);
+            expect(ref.current.data).toEqual({v: 2});
+        });
+
+        it("hands two reloads requested before any commit to the loader once", () => {
+            mockStatefulLoader = true;
+            mockPreloadedData = {v: 3};
+            const ref = React.createRef<any>();
+            render(buildTree(ref));
+
+            act(() => {
+                ref.current.load();
+                ref.current.load();
+            });
+
+            expect(mockLoadQuery).toHaveBeenCalledTimes(1);
+            expect(ref.current.isLoading).toBe(false);
+            expect(ref.current.data).toEqual({v: 3});
         });
     });
 
