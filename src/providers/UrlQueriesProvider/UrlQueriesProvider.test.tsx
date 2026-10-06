@@ -85,32 +85,44 @@ describe("UrlQueriesProvider", () => {
         expect(getValue().stagedParams).toBe(initialStaged);
     });
 
-    it("edit applies a change immediately to URL", () => {
+    it("edit applies a change to the URL in the next microtask", async () => {
         const {getValue} = renderUrlQueriesProvider();
 
         act(() => {
             getValue().edit("page", 3);
         });
 
+        await act(async () => {
+            await Promise.resolve();
+        });
+
         expect(getValue().appliedParams.get("page")).toBe("3");
         expect(getValue().stagedParams.page).toBe(3);
     });
 
-    it("edit removes param when value is null", () => {
+    it("edit removes param when value is null", async () => {
         const {getValue} = renderUrlQueriesProvider(["/?page=1"]);
 
         act(() => {
             getValue().edit("page", null);
         });
 
+        await act(async () => {
+            await Promise.resolve();
+        });
+
         expect(getValue().appliedParams.get("page")).toBeNull();
     });
 
-    it("edit removes param when value is undefined", () => {
+    it("edit removes param when value is undefined", async () => {
         const {getValue} = renderUrlQueriesProvider(["/?page=1"]);
 
         act(() => {
             getValue().edit("page", undefined);
+        });
+
+        await act(async () => {
+            await Promise.resolve();
         });
 
         expect(getValue().appliedParams.get("page")).toBeNull();
@@ -200,6 +212,48 @@ describe("UrlQueriesProvider", () => {
     });
 
     // --- Batching ---
+
+    it("an edit and an update in the same cycle both land", async () => {
+        // The dialog stack sync edits dStack while the chatbot updates filters:
+        // with an immediate edit, the second write erased the first.
+        const {getValue} = renderUrlQueriesProvider(["/?dStack=board"]);
+
+        act(() => {
+            getValue().update({showDecisions: "true", companyId: null});
+            getValue().edit("dStack", null);
+        });
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(getValue().appliedParams.get("showDecisions")).toBe("true");
+        expect(getValue().appliedParams.get("dStack")).toBeNull();
+    });
+
+    it("an update captured before a render does not erase what was written since", async () => {
+        // A stream handler keeps the update() of the render it started in. Its
+        // write must build on the URL as it is now, not as it was then.
+        const {getValue} = renderUrlQueriesProvider(["/?clientId=c1"]);
+        const staleUpdate = getValue().update;
+
+        act(() => {
+            getValue().update({showCurve: false});
+        });
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        act(() => {
+            staleUpdate({dStack: null});
+        });
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(getValue().appliedParams.get("clientId")).toBe("c1");
+        expect(getValue().appliedParams.get("showCurve")).toBe("false");
+    });
 
     it("batches multiple update() calls in the same microtask", async () => {
         const {getValue} = renderUrlQueriesProvider();

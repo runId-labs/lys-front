@@ -39,6 +39,28 @@ const UrlQueriesProvider: React.ComponentType<UrlQueriesProviderProps> = ({child
     const [stagedParams, setStagedParams] = useState<{[key: string]: UrlQueryValue}>({});
 
     /*******************************************************************************************************************
+     *                                                  REFS
+     ******************************************************************************************************************/
+
+    /**
+     * The URL as last known: rendered, or written by a flush not rendered yet.
+     *
+     * A flush builds on it, not on setSearchParams' `prev`: react-router computes
+     * `prev` from the render the setter was created in, so a write through a setter
+     * captured earlier — a stream handler holding the update() of the render it
+     * started in, a flush landing before the previous one re-rendered — rebuilt the
+     * URL from a stale snapshot and erased what was written since.
+     */
+    const renderedSearchParamsRef = useRef(searchParams);
+    const latestSearchParamsRef = useRef(searchParams);
+    const setSearchParamsRef = useRef(setSearchParams);
+    if (renderedSearchParamsRef.current !== searchParams) {
+        renderedSearchParamsRef.current = searchParams;
+        latestSearchParamsRef.current = searchParams;
+    }
+    setSearchParamsRef.current = setSearchParams;
+
+    /*******************************************************************************************************************
      *                                                  MEMOS
      ******************************************************************************************************************/
 
@@ -69,21 +91,6 @@ const UrlQueriesProvider: React.ComponentType<UrlQueriesProviderProps> = ({child
     }, []);
 
     /**
-     * Apply change immediately to URL
-     */
-    const edit = useCallback((key: string, value: UrlQueryValue) => {
-        stage(key, value);
-        setSearchParams(prev => {
-            if (value !== undefined && value !== null) {
-                prev.set(key, value.toString());
-            } else {
-                prev.delete(key);
-            }
-            return prev;
-        });
-    }, [stage, setSearchParams]);
-
-    /**
      * Apply all staged changes to URL
      */
     const apply = useCallback(() => {
@@ -95,6 +102,8 @@ const UrlQueriesProvider: React.ComponentType<UrlQueriesProviderProps> = ({child
             }
         });
 
+        // A flush queued after this builds on what apply wrote, not on the render.
+        latestSearchParamsRef.current = newSearchParams;
         setSearchParams(newSearchParams);
     }, [stagedParams, setSearchParams]);
 
@@ -122,20 +131,32 @@ const UrlQueriesProvider: React.ComponentType<UrlQueriesProviderProps> = ({child
                 const pending = {...pendingUpdatesRef.current};
                 pendingUpdatesRef.current = {};
 
-                setSearchParams(prev => {
-                    const next = new URLSearchParams(prev);
-                    Object.entries(pending).forEach(([key, value]) => {
-                        if (value !== undefined && value !== null) {
-                            next.set(key, value.toString());
-                        } else {
-                            next.delete(key);
-                        }
-                    });
-                    return next;
+                const next = new URLSearchParams(latestSearchParamsRef.current);
+                Object.entries(pending).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        next.set(key, value.toString());
+                    } else {
+                        next.delete(key);
+                    }
                 });
+                latestSearchParamsRef.current = next;
+                setSearchParamsRef.current(next);
             });
         }
-    }, [setSearchParams]);
+    }, []);
+
+    /**
+     * Apply a single change to the URL, in the same batch as update().
+     *
+     * Not a direct setSearchParams: react-router hands every call of one cycle the
+     * same `prev` snapshot, so an immediate edit and a batched update in the same
+     * cycle overwrote each other — the dialog stack sync (dStack) erased the filters
+     * the chatbot had just written when its action closed a panel.
+     */
+    const edit = useCallback((key: string, value: UrlQueryValue) => {
+        stage(key, value);
+        update({[key]: value});
+    }, [stage, update]);
 
     /*******************************************************************************************************************
      *                                                  EFFECTS

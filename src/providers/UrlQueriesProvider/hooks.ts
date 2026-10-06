@@ -25,7 +25,7 @@ const UrlQueriesContext = createContext<{
  * Features:
  * - appliedParams: Current URL search params
  * - stagedParams: Staged changes not yet applied to URL
- * - edit(): Apply a single change immediately to URL
+ * - edit(): Apply a single change to the URL (batched with update(), next microtask)
  * - stage(): Stage a change without updating URL
  * - apply(): Apply all staged changes at once
  * - update(): Update multiple params directly

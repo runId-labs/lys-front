@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-10-06
+
+### Fixed
+
+- `UrlQueriesProvider`: a URL write no longer erases what another wrote just before it. react-router's `setSearchParams` computes `prev` from the render the setter was created in, so a write through an `update()` captured earlier — a stream handler holding the one of the render it started in, a flush landing before the previous one re-rendered — rebuilt the URL from a stale snapshot. Each flush now builds on the URL as last written, and `update()` is stable across renders
+- `UrlQueriesProvider.edit()` goes through the same batch as `update()` instead of writing the URL at once. The dialog stack sync (`dStack`) editing in the same cycle as the chatbot setting page filters erased those filters
+- `LysQueryProvider`: a refresh signal matching the query's node types no longer loads a query that was never loaded. A refresh renews what was loaded; on a provider its caller had not asked to load yet (a detail panel waiting for an id), it sent the query with whatever parameters it had — a null id refused by the server, surfaced as an error nobody caused. A provider handed a preloaded reference still reloads
+
+### Added
+
+- Tests: a stale `update()` builds on the latest URL; an `edit` and an `update` in the same cycle both land; a refresh skips a never-loaded provider and reloads one loaded through `load()` or preloaded
+
 ## [0.20.2] - 2026-10-01
 
 ### Fixed

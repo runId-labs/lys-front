@@ -293,10 +293,17 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
 
             if (shouldRefresh) {
                 lastRefreshVersionRef.current = refreshSignal.version;
-                reloadQuery();
+                // A refresh renews what was loaded. A provider its caller never asked to
+                // load (a detail panel waiting for an id) has nothing to renew: loading
+                // it here sent its query with whatever parameters it had — a null id
+                // refused by the server, surfaced as an error nobody caused. Loaded means
+                // either requested through load() or handed a preloaded reference.
+                if (handledLoadRequest > 0 || queryReference) {
+                    reloadQuery();
+                }
             }
         }
-    }, [refreshSignal, nodeTypes, reloadQuery]);
+    }, [refreshSignal, nodeTypes, reloadQuery, handledLoadRequest, queryReference]);
 
     /**
      * Expose ref interface using useImperativeHandle

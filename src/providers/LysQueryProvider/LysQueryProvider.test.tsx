@@ -235,6 +235,72 @@ describe("LysQueryProvider", () => {
             // No matching node types in our mock query, so disposeQuery should NOT be called
             expect(mockDisposeQuery).not.toHaveBeenCalled();
         });
+
+        const nodeQuery = {
+            params: {name: "NodeQuery"},
+            operation: {
+                selections: [{name: "getItem", concreteType: "ItemNode"}],
+            },
+        } as any;
+
+        const renderWithSignal = (signal: RefreshSignal, ref?: React.Ref<any>) => (
+            <AlertMessageContext.Provider value={{merge: vi.fn()}}>
+                <ConnectedUserContext.Provider value={createMockConnectedUserContext()}>
+                    <WebserviceAccessContext.Provider value={createMockWebserviceAccessContext()}>
+                        <RefreshSignalContext.Provider value={signal}>
+                            <LysLoadingContext.Provider value={{loadingFallback: null}}>
+                                <LysQueryProvider ref={ref} query={nodeQuery}>
+                                    <div>Child</div>
+                                </LysQueryProvider>
+                            </LysLoadingContext.Provider>
+                        </RefreshSignalContext.Provider>
+                    </WebserviceAccessContext.Provider>
+                </ConnectedUserContext.Provider>
+            </AlertMessageContext.Provider>
+        );
+
+        it("does not load a query that was never loaded when its node type is refreshed", () => {
+            mockQueryRef = null;
+
+            const {rerender} = render(renderWithSignal({nodes: [], version: 0}));
+            act(() => {
+                rerender(renderWithSignal({nodes: ["ItemNode"], version: 1}));
+            });
+
+            expect(mockDisposeQuery).not.toHaveBeenCalled();
+            expect(mockLoadQuery).not.toHaveBeenCalled();
+        });
+
+        it("reloads a query loaded through load() when its node type is refreshed", () => {
+            // Static loader: the reference stays null, so only the handled load
+            // request tells the provider it was loaded.
+            mockQueryRef = null;
+            const ref = React.createRef<any>();
+
+            const {rerender} = render(renderWithSignal({nodes: [], version: 0}, ref));
+            act(() => {
+                ref.current.load();
+            });
+            expect(mockLoadQuery).toHaveBeenCalledTimes(1);
+
+            act(() => {
+                rerender(renderWithSignal({nodes: ["ItemNode"], version: 1}, ref));
+            });
+
+            expect(mockDisposeQuery).toHaveBeenCalled();
+            expect(mockLoadQuery).toHaveBeenCalledTimes(2);
+        });
+
+        it("reloads a preloaded query when its node type is refreshed", () => {
+            mockQueryRef = {__id: "ref"};
+
+            const {rerender} = render(renderWithSignal({nodes: [], version: 0}));
+            act(() => {
+                rerender(renderWithSignal({nodes: ["ItemNode"], version: 1}));
+            });
+
+            expect(mockDisposeQuery).toHaveBeenCalled();
+        });
     });
 
     describe("container element", () => {
