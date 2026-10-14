@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d3d2b42d44f6ca73064982865e39be55>>
+ * @generated SignedSource<<80396365ddf6df48feee88d71524cfdf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -86,6 +86,13 @@ return {
             "args": null,
             "kind": "ScalarField",
             "name": "clientId",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "previousLoginAt",
             "storageKey": null
           },
           {
@@ -216,12 +223,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d3e316fb43b8385087c75abfd7e0b28b",
+    "cacheID": "43e76ad41c0a7ecf700794778537d137",
     "id": null,
     "metadata": {},
     "name": "ConnectedUserProviderQuery",
     "operationKind": "query",
-    "text": "query ConnectedUserProviderQuery {\n  connectedUser {\n    ...ConnectedUserFragment_user\n    id\n  }\n}\n\nfragment ConnectedUserFragment_user on UserNode {\n  id\n  clientId\n  client {\n    name\n    id\n  }\n  emailAddress {\n    id\n    address\n    createdAt\n    updatedAt\n    validatedAt\n    lastValidationRequestAt\n  }\n  status {\n    id\n    code\n  }\n  language {\n    id\n    code\n  }\n  privateData {\n    firstName\n    lastName\n    gender {\n      id\n      code\n    }\n    id\n  }\n}\n"
+    "text": "query ConnectedUserProviderQuery {\n  connectedUser {\n    ...ConnectedUserFragment_user\n    id\n  }\n}\n\nfragment ConnectedUserFragment_user on UserNode {\n  id\n  clientId\n  previousLoginAt\n  client {\n    name\n    id\n  }\n  emailAddress {\n    id\n    address\n    createdAt\n    updatedAt\n    validatedAt\n    lastValidationRequestAt\n  }\n  status {\n    id\n    code\n  }\n  language {\n    id\n    code\n  }\n  privateData {\n    firstName\n    lastName\n    gender {\n      id\n      code\n    }\n    id\n  }\n}\n"
   }
 };
 })();

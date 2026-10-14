@@ -32,6 +32,12 @@ describe("errorTranslations", () => {
     });
 });
 
+describe("SSO errors", () => {
+    it("translates the error the backend redirects a disabled account to after an SSO login", () => {
+        expect(isErrorKey("SSO_USER_BLOCKED")).toBe(true);
+    });
+});
+
 describe("isErrorKey", () => {
     it("returns true for a known error key", () => {
         expect(isErrorKey("UNKNOWN_ERROR")).toBe(true);

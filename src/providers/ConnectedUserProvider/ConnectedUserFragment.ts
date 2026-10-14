@@ -15,6 +15,7 @@ export const ConnectedUserFragment = graphql`
     fragment ConnectedUserFragment_user on UserNode {
         id
         clientId
+        previousLoginAt
         client {
             name
         }

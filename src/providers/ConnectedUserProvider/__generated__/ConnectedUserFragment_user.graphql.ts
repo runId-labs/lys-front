@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<743859ed59168fda43867bc866454e21>>
+ * @generated SignedSource<<edfbc74ff4256308f4ea73f78c8ce051>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,6 +28,7 @@ export type ConnectedUserFragment_user$data = {
     readonly code: string;
     readonly id: string;
   };
+  readonly previousLoginAt: any | null | undefined;
   readonly privateData: {
     readonly firstName: string | null | undefined;
     readonly gender: {
@@ -77,6 +78,13 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "clientId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "previousLoginAt",
       "storageKey": null
     },
     {
@@ -205,6 +213,6 @@ return {
 };
 })();
 
-(node as any).hash = "c8378a02ac79362beb46da5730312b48";
+(node as any).hash = "e81091abc651ff9c5e3631d81e53c180";
 
 export default node;

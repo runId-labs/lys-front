@@ -15,7 +15,7 @@ A page is described (not hand-routed) by a `PageDescriptionType`:
 | `path` | URL path |
 | `type` | `"public"` \| `"private"` |
 | `template` | page template component (app-provided; optional) |
-| `mainWebserviceName` | string or any-of array — the webservice gating access (drives link/menu visibility) |
+| `mainWebserviceName` | string or any-of array — the webservice gating access (drives link/menu visibility, and the pages the chatbot may list: emitted as `main_webservices` in the routes manifest — write it as string literals, the manifest generator fails on a constant or an expression) |
 | `translation` | the page's translation config (`pageName` key used by tab bars) |
 | `description` | one English sentence — consumed by the chatbot navigation |
 | `breadcrumbs` | optional `[{routeName}]` |

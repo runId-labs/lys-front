@@ -6,6 +6,7 @@ import {
     unusableParams,
     extractChatbotBehaviour,
     extractStringArray,
+    extractMainWebservices,
     extractRootFields
 } from "./generate-routes-manifest.js";
 
@@ -215,6 +216,36 @@ describe("extractStringArray", () => {
 
     it("returns null when the property is absent, so a present config file is reported", () => {
         expect(extractStringArray("export const chatbotConfig = {};", "globalWebservices")).toBeNull();
+    });
+});
+
+describe("extractMainWebservices", () => {
+    it("reads a single gate as a one-entry list", () => {
+        expect(extractMainWebservices('mainWebserviceName: "allUsers",')).toEqual(["allUsers"]);
+    });
+
+    it("reads an any-of gate as a list", () => {
+        expect(extractMainWebservices('mainWebserviceName: ["allUsers", "allClients"],'))
+            .toEqual(["allUsers", "allClients"]);
+    });
+
+    it("reads a multi-line any-of gate with a trailing comma", () => {
+        expect(extractMainWebservices('mainWebserviceName: [\n    "allUsers",\n    "allClients",\n],'))
+            .toEqual(["allUsers", "allClients"]);
+    });
+
+    it("returns null when the page declares no gate, so the route stays open", () => {
+        expect(extractMainWebservices('path: "/home",\ndescription: "Home",')).toBeNull();
+    });
+
+    it("keeps an empty any-of gate empty: the page is open to nobody, not to everybody", () => {
+        expect(extractMainWebservices("mainWebserviceName: [],")).toEqual([]);
+    });
+
+    it("throws on a gate it cannot read instead of reading it as no gate", () => {
+        expect(() => extractMainWebservices("mainWebserviceName: WS.admin,")).toThrow(/WS\.admin/);
+        expect(() => extractMainWebservices('mainWebserviceName: ["allUsers", WS.admin],')).toThrow();
+        expect(() => extractMainWebservices("mainWebserviceName: `${prefix}Users`,")).toThrow();
     });
 });
 

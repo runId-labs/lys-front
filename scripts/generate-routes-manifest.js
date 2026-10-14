@@ -74,6 +74,45 @@ function extractExtraWebservices(content) {
 }
 
 /**
+ * The page's access gate, `mainWebserviceName`, with useRouteAccess's semantics:
+ * - `null`: no gate declared, the page is open to every connected user
+ * - an array: any-of gate (a single webservice becomes a one-entry list); an
+ *   empty array opens the page to nobody
+ *
+ * Throws when the gate is declared but is not made of string literals (a
+ * constant, an expression, a template with interpolation): this static parser
+ * cannot read it, and reading it as "no gate" would list a restricted page to
+ * every user.
+ *
+ * Emitted at the route level so the backend lists to the assistant only the pages
+ * the user can open — the same gate that hides the page from the menus and links.
+ * Read here and nowhere else: one declaration, one rule on both sides.
+ */
+function extractMainWebservices(content) {
+    const declaration = content.match(/\bmainWebserviceName\s*:\s*(\[[^\]]*\]|[^,\n}]+)/);
+    if (!declaration) return null;
+
+    const value = declaration[1].trim();
+    const literal = /^(["'`])([^"'`$]+)\1$/;
+    const unreadable = new Error(
+        `mainWebserviceName must be a string literal or an array of string literals, got: ${value}`
+    );
+
+    if (value.startsWith("[")) {
+        const entries = value.slice(1, -1).split(",").map(entry => entry.trim()).filter(Boolean);
+        return entries.map(entry => {
+            const match = entry.match(literal);
+            if (!match) throw unreadable;
+            return match[2];
+        });
+    }
+
+    const match = value.match(literal);
+    if (!match) throw unreadable;
+    return [match[2]];
+}
+
+/**
  * Extract a brace-delimited block, braces included, starting at an opening brace
  */
 function extractBraceBlock(content, openIndex) {
@@ -324,10 +363,16 @@ function parsePageConfig(pageName) {
 
         const {behaviour: chatbotBehaviour, params} = extractChatbotBehaviour(content);
         const extraWebservices = extractExtraWebservices(content);
-
         const problems = params ? unusableParams(pageName, params) : [];
 
-        return {path, description, type, chatbotBehaviour, params, extraWebservices, problems};
+        let mainWebservices = null;
+        try {
+            mainWebservices = extractMainWebservices(content);
+        } catch (error) {
+            problems.push(`${pageName}: ${error.message}`);
+        }
+
+        return {path, description, type, chatbotBehaviour, params, extraWebservices, mainWebservices, problems};
     } catch (error) {
         console.error(`Error parsing ${configPath}:`, error.message);
         return null;
@@ -813,6 +858,9 @@ function main() {
 
         problems.push(...(config.problems || []));
 
+        // An empty any-of gate opens the page to nobody: not listed at all.
+        if (config.mainWebservices && config.mainWebservices.length === 0) continue;
+
         const webservices = getPageWebservices(pageName);
 
         // Merge detected webservices with extraWebservices from config
@@ -826,7 +874,11 @@ function main() {
             name: pageName,
             path: config.path,
             description: config.description,
-            webservices: uniqueWebservices
+            // Every webservice the page calls: what the assistant may use ON the page.
+            webservices: uniqueWebservices,
+            // The page's access gate (any-of): whether the page is listed to the user at all.
+            // Empty when the page declares no gate (open to every connected user).
+            main_webservices: config.mainWebservices ?? []
         };
 
         if (config.chatbotBehaviour) {
@@ -842,9 +894,9 @@ function main() {
 
     if (problems.length > 0) {
         console.error(
-            `\n${problems.length} param declaration(s) the validator will not use as `
-            + "written — a filter that renders nothing or a cap the framework overrides, "
-            + "while the page's prompt keeps promising the model the filter:"
+            `\n${problems.length} page declaration(s) the manifest cannot use as written — `
+            + "a param filter that renders nothing, a cap the framework overrides, "
+            + "or an access gate this parser cannot read:"
         );
         for (const problem of problems) {
             console.error(`  ✗ ${problem}`);
@@ -908,4 +960,4 @@ if (isRunAsProgram()) {
     main();
 }
 
-export {extractBraceBlock, parseParamSpec, extractParams, unusableParams, extractChatbotBehaviour, extractStringArray, extractRootFields};
+export {extractBraceBlock, parseParamSpec, extractParams, unusableParams, extractChatbotBehaviour, extractStringArray, extractMainWebservices, extractRootFields};

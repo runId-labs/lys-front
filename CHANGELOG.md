@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-14
+
+### Added
+
+- `SSO_USER_BLOCKED` error translation: the message a disabled account gets after an SSO login (lys ≥ 0.55.0 redirects to `?error=SSO_USER_BLOCKED`); it read as "unknown error" before
+- `ConnectedUserInterface.previousLoginAt` (fragment `ConnectedUserFragment_user`): when the user's previous session started, null on a first login. Needs lys ≥ 0.55.0 (`UserNode.previousLoginAt`): on an older backend the `connectedUser` query fails. Required in the interface, so consumer code building a `ConnectedUserInterface` (test mocks) must add it
+- Routes manifest: each route carries `main_webservices`, the page's `mainWebserviceName` as a list (empty when the page declares none). The backend reads it to list to the assistant only the pages the user can open — the same gate that hides a page from the menus and links. Until now the manifest carried no gate and every page was offered to every user. A page gated by an empty list (open to nobody, as in `useRouteAccess`) is left out of the manifest; a gate that is not made of string literals (constant, expression) fails the generation instead of being read as "no gate"
+
 ## [0.20.3] - 2026-10-06
 
 ### Fixed

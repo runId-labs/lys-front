@@ -72,6 +72,12 @@ export interface ClientInterface {
 export interface ConnectedUserInterface {
     id: string
     clientId: string | null
+    /**
+     * When the user's previous session started: the successful login before the
+     * current one. Null on a first login. Changes at each login, so it also tells
+     * a new session from a reload of the same one.
+     */
+    previousLoginAt: string | null
     client: ClientInterface | null
     emailAddress: EmailAddressInterface
     status: UserStatusInterface

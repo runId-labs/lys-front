@@ -178,6 +178,10 @@ export const errorTranslations = {
         en: "No account found for this SSO identity. Please sign up first.",
         fr: "Aucun compte trouvé pour cette identité SSO. Veuillez d'abord vous inscrire."
     },
+    SSO_USER_BLOCKED: {
+        en: "This account is disabled. Please contact your administrator.",
+        fr: "Ce compte est désactivé. Veuillez contacter votre administrateur."
+    },
     SSO_SESSION_EXPIRED: {
         en: "SSO session has expired. Please try again.",
         fr: "La session SSO a expiré. Veuillez réessayer."
