@@ -15,6 +15,12 @@ export interface FrontendAction {
     internalParams?: Record<string, unknown> | null;
     nodes?: string[] | null;
     continueAction?: boolean | null;
+    /**
+     * Set on a proposal the user answers (a tool the server declares
+     * user-answered): the call it belongs to, left open by the server until the
+     * client posts the user's answer under this id.
+     */
+    toolCallId?: string | null;
 }
 
 export interface AIMessage {

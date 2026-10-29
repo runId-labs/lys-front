@@ -23,6 +23,12 @@ export interface DialogConfig {
     backdrop?: boolean | "static"
     syncWithUrl?: boolean  // Enable URL synchronization for this dialog (default: true)
     loading?: boolean  // Show loading spinner instead of body content
+    // Called once when the dialog leaves the stack, whatever removed it (close, back,
+    // close all, the user hiding the panel). The opener tells a completion from a
+    // dismissal itself: the body's onCompleted runs before it closes the dialog.
+    // Kept from the first open: a re-open of a key on the stack drops the new one, and
+    // update cannot change it, so a callback reading changing state reads it from a ref.
+    onClose?: () => void
 }
 
 /**

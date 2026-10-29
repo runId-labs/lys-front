@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-29
+
+### Added
+
+- `LysDialogProvider`: `DialogConfig.onClose`, called once when the dialog leaves the stack, whatever removed it (`close`/`back`, `closeAll`, the user hiding the panel, which clears the whole stack). Re-opening a key on the stack or updating it is not leaving. The callback kept is the one of the first open (a re-open drops the new one, `update` cannot change it). A callback that throws is logged and does not stop the others
+- `FrontendAction.toolCallId` (chatbot): set on a proposal the user answers, the id of the tool call the server leaves open until the client posts the user's answer under it
+- Tests: `onClose` on close, close all, re-open and update, the first callback kept on re-open, a throwing callback not stopping the others
+
 ## [0.21.0] - 2026-10-14
 
 ### Added

@@ -17,8 +17,20 @@ openDialog({
     backdrop?: boolean | "static",
     syncWithUrl?: boolean,              // default true — dStack URL param restores the stack
     loading?: boolean,                  // spinner instead of body
+    onClose?: () => void,               // once, when the dialog leaves the stack
 });
 ```
+
+`onClose` runs once when the dialog leaves the stack, whatever removed it:
+`close`/`back`, `closeAll`, the user hiding the panel (which clears the whole
+stack — every dialog on it hears it). Re-opening a key on the stack or
+updating it is not leaving. It does not say why: an opener that must tell a
+completion from a dismissal records the completion in the body's
+`onCompleted`, which runs before that callback closes the dialog. The callback
+is the one of the first open: a re-open of a key on the stack drops the new
+one and `update` cannot change it, so a callback that reads changing state
+reads it from a ref. A callback that throws is logged and does not stop the
+others.
 
 Dialogs STACK (`stack`, `current`). `open()` on a `uniqueKey` already on the
 stack never stacks a twin: the existing entry comes back to the top AS IT IS

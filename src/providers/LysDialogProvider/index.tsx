@@ -80,6 +80,7 @@ const LysDialogProvider: React.FC<LysDialogProviderProps> = ({
     const dialogRefs = useRef<Map<string, DialogComponentRefInterface>>(new Map())
     const dialogRegistry = useRef<Map<string, Omit<DialogConfig, 'uniqueKey'>>>(new Map())
     const initializedFromUrl = useRef(false)
+    const previousStack = useRef<DialogConfig[]>([])
 
     // Get current dialog (last in stack)
     const current = useMemo(() => {
@@ -148,6 +149,23 @@ const LysDialogProvider: React.FC<LysDialogProviderProps> = ({
             }
         }
     }, [current])
+
+    // Tell each dialog that left the stack, once, whatever removed it. Diffed on the
+    // keys: a key brought back to the top or updated has not left. Read from the
+    // previous stack, so the callback is the one of the config that was shown. A
+    // callback that throws is logged, so the others still run and the provider stays up.
+    useEffect(() => {
+        const remaining = new Set(state.stack.map(dialog => dialog.uniqueKey))
+        const left = previousStack.current.filter(dialog => !remaining.has(dialog.uniqueKey))
+        previousStack.current = state.stack
+        left.forEach(dialog => {
+            try {
+                dialog.onClose?.()
+            } catch (error) {
+                console.error(`LysDialogProvider: onClose of "${dialog.uniqueKey}" threw`, error)
+            }
+        })
+    }, [state.stack])
 
     // Handle dialog hide event (when user closes it)
     const handleDialogHide = useCallback((uniqueKey: string) => {

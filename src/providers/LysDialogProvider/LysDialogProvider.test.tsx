@@ -299,6 +299,99 @@ describe("LysDialogProvider", () => {
         });
     });
 
+    describe("onClose", () => {
+        it("runs once for the dialog a close pops, not for the one left", () => {
+            const {getDialog} = renderDialogProvider();
+            const onClose1 = vi.fn();
+            const onClose2 = vi.fn();
+
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: onClose1});
+                getDialog().open({uniqueKey: "d2", title: "D2", body: <div>2</div>, onClose: onClose2});
+            });
+            act(() => {
+                getDialog().close();
+            });
+
+            expect(onClose2).toHaveBeenCalledTimes(1);
+            expect(onClose1).not.toHaveBeenCalled();
+        });
+
+        it("runs for every dialog a close all clears", () => {
+            const {getDialog} = renderDialogProvider();
+            const onClose1 = vi.fn();
+            const onClose2 = vi.fn();
+
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: onClose1});
+                getDialog().open({uniqueKey: "d2", title: "D2", body: <div>2</div>, onClose: onClose2});
+            });
+            act(() => {
+                getDialog().closeAll();
+            });
+
+            expect(onClose1).toHaveBeenCalledTimes(1);
+            expect(onClose2).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not run when a key is re-opened or updated", () => {
+            const {getDialog} = renderDialogProvider();
+            const onClose1 = vi.fn();
+
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: onClose1});
+                getDialog().open({uniqueKey: "d2", title: "D2", body: <div>2</div>});
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: onClose1});
+                getDialog().update("d1", {title: "D1 updated"});
+            });
+
+            expect(onClose1).not.toHaveBeenCalled();
+        });
+
+        it("keeps the first callback when a key on the stack is re-opened", () => {
+            const {getDialog} = renderDialogProvider();
+            const first = vi.fn();
+            const second = vi.fn();
+
+            act(() => {
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: first});
+                getDialog().open({uniqueKey: "d1", title: "D1", body: <div>1</div>, onClose: second});
+            });
+            act(() => {
+                getDialog().close();
+            });
+
+            expect(first).toHaveBeenCalledTimes(1);
+            expect(second).not.toHaveBeenCalled();
+        });
+
+        it("still runs the other callbacks when one throws", () => {
+            const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const {getDialog} = renderDialogProvider();
+            const onClose2 = vi.fn();
+
+            act(() => {
+                getDialog().open({
+                    uniqueKey: "d1", title: "D1", body: <div>1</div>,
+                    onClose: () => { throw new Error("boom"); }
+                });
+                getDialog().open({uniqueKey: "d2", title: "D2", body: <div>2</div>, onClose: onClose2});
+            });
+            act(() => {
+                getDialog().closeAll();
+            });
+
+            expect(onClose2).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(
+                expect.stringContaining("\"d1\""),
+                expect.any(Error)
+            );
+            errorSpy.mockRestore();
+        });
+    });
+
     describe("default context (outside provider)", () => {
         it("logs errors when methods are called outside provider", () => {
             const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
