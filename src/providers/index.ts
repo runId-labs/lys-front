@@ -35,6 +35,8 @@ export type { RestrictedLink } from "./hooks/useRestrictedLink";
 export { useRouteAccess } from "./hooks/useRouteAccess";
 export { useRelayPagination } from "./hooks/useRelayPagination";
 export type { RelayPageVars, RelayPagination } from "./hooks/useRelayPagination";
+export { useSelectRef, useMultiSelectRef } from "./hooks/useSelectRef";
+export type { SelectItem, SelectRefInterface, MultiSelectRefInterface } from "./hooks/useSelectRef";
 export { useRouteInfo } from "./RouteProvider/hooks";
 export type { RouteContextValue } from "./RouteProvider/hooks";
 export type { RouteProviderProps, RouteTemplateProps } from "./RouteProvider";

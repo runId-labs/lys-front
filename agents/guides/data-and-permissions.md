@@ -40,6 +40,30 @@ const [mutationRef, setMutationRef] = useState<LysMutationRefInterface | null>(n
 </LysMutationProvider>
 ```
 
+## Selector ref pattern
+
+A selector is a restricted component that loads its options with a
+`LysQueryProvider`. Its value holds ids; the objects behind them are read
+through its ref, built by `useSelectRef` (one value) or `useMultiSelectRef`
+(several):
+
+```tsx
+// In the selector (forwardRef<MultiSelectRefInterface<Fact>, Props>)
+const items = useMemo(() => /* map queryRef.data to objects with an id */, [queryRef?.data]);
+useMultiSelectRef(ref, {queryRef, items, value: props.value});
+
+// In the parent: a state setter, so a new selection renders it again
+const [factsRef, setFactsRef] = useState<MultiSelectRefInterface<Fact> | null>(null);
+<FactsSelect ref={setFactsRef} value={ids} onChange={setIds} />
+{factsRef?.selectedItems.map(fact => …)}
+```
+
+Ref surface: `hasPermission`, `isLoading`, `reload()`, and `selectedItem`
+(single) or `selectedItems` (multiple). The selection is resolved from the
+loaded options only: an id outside them is absent from it, and a caller that
+holds such ids resolves them itself. The ref is null until the selector
+renders — read it with `?.`.
+
 ## RULES
 
 - **R1 — Never hand-roll permission gating around these providers.** Rendering
@@ -55,3 +79,8 @@ const [mutationRef, setMutationRef] = useState<LysMutationRefInterface | null>(n
   features. Elements (pure UI) never touch them.
 - **R5 — Expose `hasPermission` upward** with `useImperativeHandle` on a
   `<Name>RefInterface` when a parent needs to compose gated UI.
+- **R6 — Selectors expose their selection through `useSelectRef` /
+  `useMultiSelectRef`**, never through a callback copied into the parent's
+  state: the ref is derived from the value and the loaded options, so it is
+  right for an initial value and for a value the parent changes itself — a
+  callback only fires on the user's clicks.

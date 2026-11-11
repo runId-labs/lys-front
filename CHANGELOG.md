@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-11
+
+### Added
+
+- `useSelectRef` / `useMultiSelectRef` hooks: expose a selector's ref (`hasPermission`, `isLoading`, `reload()`, `selectedItem` / `selectedItems`) derived from its value and the options its `LysQueryProvider` loaded. The multiple selection is compared by content, so a parent passing a new array with the same ids keeps the same handle. `reload()` is a no-op without permission
+- `data-and-permissions.md` guide: selector ref pattern and rule R6
+- Tests: single and multiple resolution, missing ids left out, options arriving after the value, handle stability, no render loop in a parent holding the ref in state, `reload` with and without permission
+
 ## [0.22.0] - 2026-10-29
 
 ### Added

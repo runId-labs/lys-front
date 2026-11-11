@@ -21,6 +21,10 @@ commit.
 | Hook | Provider |
 |------|----------|
 | `usePermissionCheck` | Standalone — checks operations against webservice access levels |
+| `useRouteAccess` | Standalone — reports whether the current user can access a route |
+| `useRestrictedLink` | Standalone — route permission check plus navigation callback |
+| `useRelayPagination` | Standalone — cursor variables and page size for a Relay connection |
+| `useSelectRef` / `useMultiSelectRef` | Standalone — selector ref (permission, loading, reload, selection) |
 
 Each provider also exports its own hook (e.g., `useLysQuery`, `useLysMutation`, `useChatbot`, `useLocale`, etc.).
 
@@ -80,7 +84,7 @@ npm run test:watch         # Run tests in watch mode
 - **Test location**: Co-located as `*.test.ts` / `*.test.tsx` next to source files
 - **Setup**: `src/test/setup.ts` (@testing-library/jest-dom + cleanup)
 - **Utilities**: `src/test/test-utils.tsx` (mockUser, renderWithProviders)
-- **Current count**: 282 tests across 20 files
+- **Current count**: 461 tests across 27 files
 
 ### Development guidelines
 
