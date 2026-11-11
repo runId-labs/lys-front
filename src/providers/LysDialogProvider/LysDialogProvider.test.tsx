@@ -299,6 +299,79 @@ describe("LysDialogProvider", () => {
         });
     });
 
+    describe("stacked bodies", () => {
+        /** A body with state of its own: what a form typed into would lose on a remount. */
+        const CounterBody = ({label}: {label: string}) => {
+            const [count, setCount] = useState(0);
+            return <button onClick={() => setCount(c => c + 1)}>{`${label} ${count}`}</button>;
+        };
+
+        it("keeps a body mounted, with its state, while another dialog is on top", () => {
+            const {getDialog} = renderDialogProvider();
+
+            act(() => {
+                getDialog().open({uniqueKey: "form", title: "Form", body: CounterBody, bodyProps: {label: "form"}});
+            });
+            act(() => {
+                screen.getByRole("button", {name: "form 0"}).click();
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "picker", title: "Picker", body: CounterBody, bodyProps: {label: "picker"}});
+            });
+
+            // Only the top body is visible; the one underneath is hidden, not gone
+            expect(screen.getByRole("button", {name: "picker 0"})).toBeVisible();
+            expect(screen.getByText("form 1")).not.toBeVisible();
+
+            act(() => {
+                getDialog().close();
+            });
+
+            expect(screen.getByRole("button", {name: "form 1"})).toBeVisible();
+        });
+
+        it("drops a body, and its state, once its dialog leaves the stack", () => {
+            const {getDialog} = renderDialogProvider();
+
+            act(() => {
+                getDialog().open({uniqueKey: "form", title: "Form", body: CounterBody, bodyProps: {label: "form"}});
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "picker", title: "Picker", body: CounterBody, bodyProps: {label: "picker"}});
+            });
+            act(() => {
+                screen.getByRole("button", {name: "picker 0"}).click();
+            });
+            act(() => {
+                getDialog().close();
+            });
+
+            expect(screen.queryByText(/picker/)).not.toBeInTheDocument();
+
+            act(() => {
+                getDialog().open({uniqueKey: "picker", title: "Picker", body: CounterBody, bodyProps: {label: "picker"}});
+            });
+
+            expect(screen.getByRole("button", {name: "picker 0"})).toBeVisible();
+        });
+
+        it("shows the panel again for a new stack after a close all", () => {
+            const {getDialog} = renderDialogProvider();
+
+            act(() => {
+                getDialog().open({uniqueKey: "first", title: "First", body: <div>first body</div>});
+            });
+            act(() => {
+                getDialog().closeAll();
+            });
+            act(() => {
+                getDialog().open({uniqueKey: "second", title: "Second", body: <div>second body</div>});
+            });
+
+            expect(screen.getByText("second body")).toBeVisible();
+        });
+    });
+
     describe("onClose", () => {
         it("runs once for the dialog a close pops, not for the one left", () => {
             const {getDialog} = renderDialogProvider();

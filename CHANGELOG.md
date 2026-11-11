@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-11-11
+
+### Fixed
+
+- `LysDialogProvider`: opening a dialog on top of another no longer remounts the panel and wipes the state of the dialog underneath (a form's typed input survived a picker opening over it only by luck of the render order). One panel now serves the whole stack, keyed by the bottom dialog: every body of the stack stays mounted and only the top one is visible — `hidden` takes the others out of view and out of the keyboard order. A body leaves the tree, and loses its state, only when its dialog leaves the stack
+- Tests: body state kept while another dialog is on top, body and its state dropped once its dialog leaves the stack, panel shown again for a new stack after a close all
+
 ## [0.23.0] - 2026-11-11
 
 ### Added

@@ -87,6 +87,9 @@ const LysDialogProvider: React.FC<LysDialogProviderProps> = ({
         return state.stack.length > 0 ? state.stack[state.stack.length - 1] : null
     }, [state.stack])
 
+    // The dialog at the bottom of the stack: the panel lives as long as it does
+    const root = state.stack.length > 0 ? state.stack[0] : null
+
     // Check if we can go back
     const canGoBack = useMemo(() => {
         return state.stack.length > 1
@@ -140,15 +143,16 @@ const LysDialogProvider: React.FC<LysDialogProviderProps> = ({
         return stackParam.split(',').filter(Boolean)
     }, [syncWithUrl, urlQueries])
 
-    // Show/hide dialog based on current dialog
+    // Show the panel once it is mounted. One panel serves the whole stack (see the
+    // render), registered under the bottom dialog's key.
     useEffect(() => {
-        if (current) {
-            const ref = dialogRefs.current.get(current.uniqueKey)
+        if (root) {
+            const ref = dialogRefs.current.get(root.uniqueKey)
             if (ref && ref.shown === null) {
                 ref.show()
             }
         }
-    }, [current])
+    }, [current, root])
 
     // Tell each dialog that left the stack, once, whatever removed it. Diffed on the
     // keys: a key brought back to the top or updated has not left. Read from the
@@ -287,25 +291,48 @@ const LysDialogProvider: React.FC<LysDialogProviderProps> = ({
 
     return (
         <LysDialogContext.Provider value={contextValue}>
-            {/* Render only the current dialog */}
-            {current && (
+            {/* One panel for the whole stack, keyed by its bottom dialog: going deeper or
+                back changes what it shows without remounting it. Every body of the stack
+                stays mounted, only the top one visible — a dialog opened on top of a form
+                must not wipe what was typed in it. A body leaves the tree, and loses its
+                state, only when its dialog leaves the stack. */}
+            {current && root && (
                 <>
                     <DialogComponent
-                        key={current.uniqueKey}
+                        key={root.uniqueKey}
                         ref={(ref) => {
                             if (ref) {
-                                dialogRefs.current.set(current.uniqueKey, ref)
+                                dialogRefs.current.set(root.uniqueKey, ref)
                                 // Monitor shown state
                                 if (ref.shown === false) {
-                                    handleDialogHide(current.uniqueKey)
+                                    handleDialogHide(root.uniqueKey)
                                 }
                             }
                         }}
                         id={`lys-dialog-${current.uniqueKey}`}
                         title={dialogTitle ?? undefined}
-                        body={current.loading ? loadingFallback : (
-                            <DialogChild body={current.body} bodyProps={current.bodyProps} />
-                        )}
+                        body={
+                            <>
+                                {state.stack.map(dialog => {
+                                    const isCurrent = dialog.uniqueKey === current.uniqueKey
+                                    return (
+                                        // `display: contents` keeps the visible body laid out
+                                        // as a direct child of the panel; `hidden` takes the
+                                        // others out of view and out of the keyboard order.
+                                        <div
+                                            key={dialog.uniqueKey}
+                                            hidden={!isCurrent}
+                                            style={isCurrent ? {display: "contents"} : undefined}
+                                            data-lys-dialog={dialog.uniqueKey}
+                                        >
+                                            {dialog.loading ? loadingFallback : (
+                                                <DialogChild body={dialog.body} bodyProps={dialog.bodyProps} />
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </>
+                        }
                         size={current.size}
                         placement={current.placement}
                         backdrop={current.backdrop}
