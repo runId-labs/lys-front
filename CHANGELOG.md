@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-13
+
+### Changed
+
+- `usePermissionCheck` (and so `LysQueryProvider` / `LysMutationProvider`): when OWNER is the user's only access level and no owners are stated (`accessParameters` absent), access is now granted and the backend decides — it filters a list to the user's own rows and refuses an object that is not theirs. A list, which has no object to take owners from, can now load. When owners are stated (`accessParameters.ownerIds`), access is still limited to them, so a control acting on a given object (edit, delete) hides itself on objects of others
+- `usePermissionCheck`: the `providerName` parameter is removed along with the warnings it labelled
+- `data-and-permissions.md` guide: OWNER handling with and without stated owners
+- Tests: no owners stated (undefined and null), empty owners, owners stated with no connected user, non-owner granted through another level
+
 ## [0.23.1] - 2026-11-11
 
 ### Fixed

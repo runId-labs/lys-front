@@ -34,7 +34,7 @@ const LysMutationProvider = forwardRef<LysMutationRefInterface, LysMutationProvi
     const operationNames = useMemo(() => extractOperationNames(props.mutation), [props.mutation]);
 
     // Permission check via shared hook
-    const hasPermission = usePermissionCheck(operationNames, props.accessParameters, "LysMutationProvider");
+    const hasPermission = usePermissionCheck(operationNames, props.accessParameters);
 
     /*******************************************************************************************************************
      *                                                  STATES

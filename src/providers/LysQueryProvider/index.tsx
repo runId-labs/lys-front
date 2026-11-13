@@ -220,7 +220,7 @@ function LysQueryProviderInner<TQuery extends OperationType = OperationType>(
     const operationNames = useMemo(() => extractOperationNames(query), [query]);
 
     // Permission check via shared hook
-    const hasPermission = usePermissionCheck(operationNames, accessParameters, "LysQueryProvider");
+    const hasPermission = usePermissionCheck(operationNames, accessParameters);
 
     // Track last processed refresh signal version
     const lastRefreshVersionRef = useRef(0);

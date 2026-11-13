@@ -22,7 +22,15 @@ useEffect(() => { /* parse queryRef.data into local state */ }, [queryRef?.data]
 ```
 
 Ref surface: `hasPermission`, `isLoading`, `data`, `load()`. Optional
-`accessParameters={{ownerIds: [...]}}` narrows row-level access.
+`accessParameters={{ownerIds: [...]}}` states the owners of the object shown.
+
+OWNER handling, when it is the user's only access level to the webservice:
+- **owners stated** (`ownerIds`): access only if the connected user is one of
+  them — a control acting on a given object (edit, delete) hides itself on
+  objects of others. **Always state them on such a control.**
+- **no owners stated**: access granted, the backend decides — it filters the
+  rows of a list to the user's own, and refuses an object that is not theirs.
+  Fits reads and lists.
 
 ## Mutation pattern
 

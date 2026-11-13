@@ -84,7 +84,7 @@ npm run test:watch         # Run tests in watch mode
 - **Test location**: Co-located as `*.test.ts` / `*.test.tsx` next to source files
 - **Setup**: `src/test/setup.ts` (@testing-library/jest-dom + cleanup)
 - **Utilities**: `src/test/test-utils.tsx` (mockUser, renderWithProviders)
-- **Current count**: 461 tests across 27 files
+- **Current count**: 468 tests across 27 files
 
 ### Development guidelines
 

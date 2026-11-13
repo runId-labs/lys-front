@@ -12,6 +12,7 @@ function renderUsePermissionCheck(options: {
     checkWebserviceAccess?: (name: string) => boolean;
     getWebserviceAccessLevels?: (name: string) => string[];
     userId?: string;
+    noConnectedUser?: boolean;
 } = {operationNames: []}) {
     const {
         operationNames,
@@ -19,10 +20,11 @@ function renderUsePermissionCheck(options: {
         checkWebserviceAccess = () => true,
         getWebserviceAccessLevels = () => ["ROLE"],
         userId = mockUser.id,
+        noConnectedUser = false,
     } = options;
 
     const connCtx = createMockConnectedUserContext({
-        user: {...mockUser, id: userId},
+        user: noConnectedUser ? undefined : {...mockUser, id: userId},
     });
     const wsCtx = createMockWebserviceAccessContext({
         checkWebserviceAccess,
@@ -38,7 +40,7 @@ function renderUsePermissionCheck(options: {
     );
 
     return renderHook(
-        () => usePermissionCheck(operationNames, accessParameters, "TestProvider"),
+        () => usePermissionCheck(operationNames, accessParameters),
         {wrapper}
     );
 }
@@ -104,35 +106,24 @@ describe("usePermissionCheck", () => {
             expect(result.current).toBe(false);
         });
 
-        it("denies and warns when OWNER is only level but no accessParameters", () => {
-            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
+        it("grants access when OWNER is only level and no owners are stated (the backend decides)", () => {
             const {result} = renderUsePermissionCheck({
                 operationNames: ["testWebservice"],
                 getWebserviceAccessLevels: () => ["OWNER"],
                 accessParameters: undefined,
             });
 
-            expect(result.current).toBe(false);
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.stringContaining("requires OWNER access but accessParameters is not defined")
-            );
+            expect(result.current).toBe(true);
         });
 
         it("grants access through non-OWNER levels even without accessParameters", () => {
-            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
             const {result} = renderUsePermissionCheck({
                 operationNames: ["testWebservice"],
                 getWebserviceAccessLevels: () => ["OWNER", "ROLE"],
                 accessParameters: undefined,
             });
 
-            // Access granted through ROLE, but warn about missing OWNER config
             expect(result.current).toBe(true);
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.stringContaining("has OWNER access level but accessParameters is not defined")
-            );
         });
 
         it("grants OWNER access when user is in ownerIds alongside other levels", () => {
@@ -140,6 +131,49 @@ describe("usePermissionCheck", () => {
                 operationNames: ["testWebservice"],
                 getWebserviceAccessLevels: () => ["OWNER", "ROLE"],
                 accessParameters: {ownerIds: [mockUser.id]},
+                userId: mockUser.id,
+            });
+
+            expect(result.current).toBe(true);
+        });
+
+        it("grants access when OWNER is only level and accessParameters is null", () => {
+            const {result} = renderUsePermissionCheck({
+                operationNames: ["testWebservice"],
+                getWebserviceAccessLevels: () => ["OWNER"],
+                accessParameters: null,
+            });
+
+            expect(result.current).toBe(true);
+        });
+
+        it("denies access when OWNER is only level and the stated owners are empty", () => {
+            const {result} = renderUsePermissionCheck({
+                operationNames: ["testWebservice"],
+                getWebserviceAccessLevels: () => ["OWNER"],
+                accessParameters: {ownerIds: []},
+                userId: mockUser.id,
+            });
+
+            expect(result.current).toBe(false);
+        });
+
+        it("denies access when OWNER is only level, owners are stated and no user is connected", () => {
+            const {result} = renderUsePermissionCheck({
+                operationNames: ["testWebservice"],
+                getWebserviceAccessLevels: () => ["OWNER"],
+                accessParameters: {ownerIds: [mockUser.id]},
+                noConnectedUser: true,
+            });
+
+            expect(result.current).toBe(false);
+        });
+
+        it("grants access through non-OWNER levels when user is not in ownerIds", () => {
+            const {result} = renderUsePermissionCheck({
+                operationNames: ["testWebservice"],
+                getWebserviceAccessLevels: () => ["OWNER", "ROLE"],
+                accessParameters: {ownerIds: ["other-user-id"]},
                 userId: mockUser.id,
             });
 

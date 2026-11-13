@@ -9,14 +9,18 @@ interface AccessParameters {
 /**
  * Hook to check permission for a set of operations with OWNER access level handling.
  *
- * - If user has only OWNER access level for a webservice, check ownerIds
  * - If user has other access levels (ROLE, ORGANIZATION_ROLE, etc.), grant access
- * - Warn if OWNER is in access levels but accessParameters is not provided
+ * - If user has only OWNER access level and the caller states the owners
+ *   (accessParameters.ownerIds), grant access only to one of them: a control
+ *   acting on a given object (edit, delete) hides itself on objects of others
+ * - If user has only OWNER access level and no owners are stated, grant access:
+ *   the backend decides, filtering the rows (a list) or refusing an object that
+ *   is not the user's. The check here only shapes the display; the webservice
+ *   is the authority.
  */
 export function usePermissionCheck(
     operationNames: string[],
-    accessParameters?: AccessParameters | null,
-    providerName: string = "Provider"
+    accessParameters?: AccessParameters | null
 ): boolean {
     const webserviceAccess = useWebserviceAccess();
     const connectedUserInfo = useConnectedUserInfo();
@@ -38,35 +42,20 @@ export function usePermissionCheck(
             // Check if OWNER is in the access levels
             const hasOwnerAccess = accessLevels.includes("OWNER");
 
-            // If OWNER is the only access level
-            if (hasOwnerAccess && accessLevels.length === 1) {
-                // accessParameters is required for OWNER-only access
-                if (!accessParameters) {
-                    console.warn(
-                        `${providerName}: Operation "${operationName}" requires OWNER access but accessParameters is not defined. ` +
-                        `Please provide accessParameters={{ ownerIds: [...] }} to enable owner-based access control.`
-                    );
-                    return false;
-                }
-
-                // Check if connected user is in ownerIds
+            // OWNER is the only access level and the caller states the owners:
+            // the connected user must be one of them
+            if (hasOwnerAccess && accessLevels.length === 1 && accessParameters) {
                 const userId = connectedUserInfo.user?.id;
                 if (!userId || !accessParameters.ownerIds.includes(userId)) {
                     return false;
                 }
-            } else if (hasOwnerAccess && !accessParameters) {
-                // OWNER is one of multiple access levels, but accessParameters not provided
-                // User has access through other levels, but warn about missing owner config
-                console.warn(
-                    `${providerName}: Operation "${operationName}" has OWNER access level but accessParameters is not defined. ` +
-                    `Owner-based access control will not work. Consider providing accessParameters={{ ownerIds: [...] }}.`
-                );
             }
 
-            // User has access (either through non-OWNER levels or passed OWNER check)
+            // User has access: through non-OWNER levels, as a stated owner, or
+            // as an owner the backend checks itself (no owners stated)
             return true;
         });
-    }, [operationNames, webserviceAccess, accessParameters, connectedUserInfo.user?.id, providerName]);
+    }, [operationNames, webserviceAccess, accessParameters, connectedUserInfo.user?.id]);
 
     const [hasPermission, setHasPermission] = useState<boolean>(() => checkPermission());
 
